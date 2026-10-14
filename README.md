@@ -3,8 +3,10 @@
 ## TFMC fork: Cinderweavers
 
 This fork targets **Paper 1.21.10 / Java 21+**. It provides staff-operated,
-procedurally animated dark fantasy clockwork spiders: black iron carapaces,
-aged copper joints, six ember eyes, hooked mandibles and smoking boiler stacks.
+procedurally animated organic dark fantasy spiders: rounded charcoal-brown
+abdomens, low cephalothoraxes, tapered legs, sparse bristles, eight clustered
+eyes with subdued red eyeshine, and curved fangs. There are no mechanical parts,
+flashing lenses or exhaust particles.
 The design is a new TFMC concept, not an assertion of established lore.
 
 Only **`tfmc.spider.staff`** grants access (default: server operators).
@@ -33,7 +35,7 @@ Hatchling, hunter and broodmother scales are 0.35, 0.8 and 1.5; manual scaling
 accepts 0.25–2.5. Up to six spiders may be active at once during Dev testing.
 
 Take controls from `/spider tools`. Right-click the Summoning Seal to create or
-recall its linked spider. Hold the Ember Beacon and aim at terrain to guide the
+recall its linked spider. Hold the Brood Guide and aim at terrain to guide the
 spiders; hold the Broodcall Whistle to call them towards you. Spiders follow the
 nearest staff beacon in the same world, using the upstream steering system. A saddle
 on a spider's hidden seat allows staff to mount it and drive with movement keys;
@@ -41,13 +43,17 @@ sneak to dismount. The other tools inspect joints, switch gait or wall grip,
 or show the animation debug view. These spiders do not yet have hostile dungeon
 AI, health, loot, eggs or persistent nests.
 
+Existing seals containing a clockwork Cinderweaver automatically receive the
+organic appearance and sounds while keeping their scale and edited leg rig.
+Take fresh tools from `/spider tools` for the new names and item appearances.
+
 All visuals are vanilla display entities. **No resource pack, client mod or other
 plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
 Build and run the permission/model tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.1.jar`** shaded
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.2.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
