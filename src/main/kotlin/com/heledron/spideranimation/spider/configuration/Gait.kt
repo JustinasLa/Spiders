@@ -6,6 +6,7 @@ import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
 import org.joml.Quaternionf
+import kotlin.math.max
 
 
 class Posture(
@@ -30,6 +31,9 @@ class Posture(
     }
 }
 
+
+/** Comfort zone kept around a lengthened stride. */
+private const val STRIDE_COMFORT_RATIO = 1.5
 
 class Gait(
     walkSpeed: Double,
@@ -59,6 +63,19 @@ class Gait(
         comfortZoneRadius *= scale
         legScanHeightBias *= scale
         tridentRotationalKnockBack /= scale
+    }
+
+    /**
+     * Change the top speed. Stride length, stride speed and acceleration follow in proportion,
+     * so steps keep their rhythm instead of falling behind (which would stall the spider).
+     */
+    fun setSpeed(speed: Double) {
+        val factor = speed / maxSpeed
+        maxSpeed = speed
+        legMoveSpeed *= factor
+        moveAcceleration *= factor
+        moving.triggerZoneRadius *= factor
+        comfortZoneRadius = max(comfortZoneRadius, moving.triggerZoneRadius * STRIDE_COMFORT_RATIO)
     }
 
     var stationary = Posture(

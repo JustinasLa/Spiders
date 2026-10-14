@@ -118,6 +118,9 @@ class Leg(
 
         if (isDisabled) {
             target = disabledTarget(ground?.position)
+        } else if (spider.leapTicks > 0) {
+            // mid-leap: legs reach to their pose under the flying body
+            target = strandedTarget()
         } else {
             if (ground != null) target = ground
 

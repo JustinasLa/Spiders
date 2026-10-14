@@ -25,6 +25,8 @@ class SpiderOptions : ECSComponent {
 
     var cloak = CloakOptions()
 
+    var pounce = PounceOptions()
+
     var bodyPlan = BodyPlan()
     var debug = SpiderDebugOptions()
 
@@ -35,6 +37,7 @@ class SpiderOptions : ECSComponent {
         gallopGait = other.gallopGait
         gallop = other.gallop
         cloak = other.cloak
+        pounce = other.pounce
         bodyPlan = other.bodyPlan
         debug = other.debug
         sound = other.sound

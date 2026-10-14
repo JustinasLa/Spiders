@@ -8,6 +8,7 @@ import com.heledron.spideranimation.utilities.ecs.ECS
 fun setupSpider(app: ECS) {
     setupSpiderBody(app)
     setupLocomotion(app)
+    setupPounce(app)
     setupSpiderRepulsion(app)
 
     setupCloak(app)
