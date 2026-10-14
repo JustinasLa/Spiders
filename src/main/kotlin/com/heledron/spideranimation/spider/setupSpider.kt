@@ -6,6 +6,8 @@ import com.heledron.spideranimation.spider.components.rendering.setupRenderer
 import com.heledron.spideranimation.utilities.ecs.ECS
 
 fun setupSpider(app: ECS) {
+    // before the body, so a mimic's height and steering apply on the same tick
+    setupMimic(app)
     setupSpiderBody(app)
     setupLocomotion(app)
     setupPounce(app)

@@ -8,6 +8,7 @@ import com.heledron.spideranimation.SpiderAnimationPlugin
 import com.heledron.spideranimation.StaffAccess
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.Locomotion
+import com.heledron.spideranimation.spider.components.Mimic
 import com.heledron.spideranimation.spider.components.Pounce
 import com.heledron.spideranimation.spider.components.stopPounce
 import com.heledron.spideranimation.spider.components.body.SpiderBody
@@ -54,7 +55,7 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
     Commands.literal("spider")
         .requires { StaffAccess.canUse(it.sender) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|mimic|0.25–2.5>, mimic <place|wake|sleep>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
@@ -72,6 +73,7 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
             SUCCESS
         })
         .then(spawnCommand())
+        .then(mimicCommand())
         .then(listCommand())
         .then(removeCommand())
         // temp debug
@@ -202,6 +204,7 @@ private fun scaleCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comman
                 val scale = DoubleArgumentType.getDouble(ctx, "scale")
 
                 val entity = requireTargetSpider(ctx.source)
+                if (entity.query<Mimic>() != null) throw commandError("Mimics stay chest-sized.")
                 val spider = entity.query<SpiderBody>() ?: throw commandError("No spider found")
                 val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
 
@@ -350,7 +353,9 @@ private fun shroudCommand(): LiteralArgumentBuilder<CommandSourceStack> {
 
 private fun climbCommand(): LiteralArgumentBuilder<CommandSourceStack> {
     fun setClimbing(ctx: CommandContext<CommandSourceStack>, climbing: Boolean): Int {
-        val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+        val entity = requireTargetSpider(ctx.source)
+        if (entity.query<Mimic>() != null) throw commandError("Mimics keep to the floor so they can sit back down as chests.")
+        val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
         options.climbing = climbing
         ctx.source.sender.sendPlainMessage(if (climbing) "Wall climbing on: walls and ceilings" else "Wall climbing off")
         return SUCCESS
