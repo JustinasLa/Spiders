@@ -24,6 +24,8 @@ Quick start, as authorised staff:
 /spider spawn 1.2
 /spider gait gallop
 /spider climb on
+/spider speed gallop 8
+/spider pounce <player>
 /spider tools
 /spider list
 /spider scale 1.2
@@ -49,6 +51,20 @@ Climbing applies to both gaits.
 tool) switches the targeted spider's gait. A rider can also hold the sprint key
 while moving to gallop, returning to a walk when they let go.
 
+**Speed.** `/spider speed gallop <blocks/s>` and `/spider speed walk <blocks/s>`
+set the targeted spider's top speed (0.5–20); without a number they show the
+current speed. Strides lengthen with speed so the legs keep up. Very small
+spiders fall short of the higher settings.
+
+**Pounce.** `/spider pounce <player> [blocks/s]` makes the targeted spider gallop
+at that player and leap the last few blocks, landing on them. The optional number sets the gallop
+speed first. You are told where it landed, or why it gave up: the player
+left, logged off, went into spectator, moved more than 96 blocks away, or 20
+seconds passed. `/spider pounce stop` cancels it. A climbing spider pounces
+along its wall or ceiling and drops onto a player below. The leap can be tuned
+with `/spider options spider_options.pounce.leapRange|leapBoost|leapLift|giveUpTicks`.
+Pounces are animation only: they do not damage anyone.
+
 Commands that act on one spider use the spider linked to the Summoning Seal in
 your hand, otherwise the nearest spider in your world.
 
@@ -71,8 +87,8 @@ plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission, model and climbing-simulation tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.6.jar`** shaded
+Build and run the permission, model, climbing and pounce simulation tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.7.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.

@@ -55,6 +55,7 @@ class Locomotion : ECSComponent {
         const val DEFAULT_PRIORITY = 0
         const val LASER_PRIORITY = 10
         const val RIDER_PRIORITY = 20
+        const val POUNCE_PRIORITY = 30
     }
 }
 
@@ -67,7 +68,8 @@ fun setupLocomotion(app: ECS) {
             locomotion.walkVelocity?.let { targetVelocity.add(it) }
             locomotion.pushVelocity?.let { targetVelocity.add(it) }
 
-            spider.walkAt(targetVelocity, tridentDetector, options.gait)
+            // no steering mid-air
+            if (spider.leapTicks == 0) spider.walkAt(targetVelocity, tridentDetector, options.gait)
 
             spider.rotateTowards(locomotion.faceDirection ?: FORWARD_VECTOR.rotate(spider.preferredOrientation), options.gait)
 

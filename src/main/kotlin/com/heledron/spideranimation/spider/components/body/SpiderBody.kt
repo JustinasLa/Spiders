@@ -44,6 +44,14 @@ class SpiderBody(
     var isWalking = false
     var isRotatingYaw = false
 
+    /** Ticks left in a leap: the body flies freely, legs reach out instead of holding on. */
+    var leapTicks = 0; private set
+
+    fun leap(launchVelocity: Vector, ticks: Int) {
+        velocity.copy(launchVelocity)
+        leapTicks = ticks
+    }
+
     private var lastAppliedBodyPlan: BodyPlan? = null
 
     fun updateBodyPlan() {
@@ -212,7 +220,8 @@ class SpiderBody(
             )
         }
 
-        val contact = calcContact(gait)
+        val leaping = leapTicks > 0
+        val contact = if (leaping) null else calcContact(gait)
         this.contact = contact
 
         // toppling
@@ -277,12 +286,12 @@ class SpiderBody(
         velocity.add(acceleration)
 
         // drag
-        if (!isWalking) {
+        if (!isWalking && !leaping) {
             val legDrag = 1 - gait.groundDragCoefficient * fractionOfLegsGrounded
             velocity.scaleTangential(upAxis, legDrag)
         }
 
-        if (onGround) {
+        if (onGround && !leaping) {
             velocity.scaleTangential(upAxis, .5)
         }
 
@@ -315,11 +324,19 @@ class SpiderBody(
             onGround = world.raycastGround(position, down, 0.001) != null
         }
 
+        // coming down onto ground: the legs take the weight again
+        if (leaping && velocity.y < 0) {
+            val nearGround = world.raycastGround(position, DOWN_VECTOR, posture(gait).bodyHeight) != null
+            if (onGround || nearGround) leapTicks = 0
+        }
+
         val updateOrder = gait.type.getLegsInUpdateOrder(this)
         for (leg in updateOrder) leg.updateMemo()
         for (leg in updateOrder) leg.update()
 
         updatePreferredAngles(gait)
+
+        if (leapTicks > 0) leapTicks--
     }
 
     private fun legsInPolygonalOrder(): List<Int> {
