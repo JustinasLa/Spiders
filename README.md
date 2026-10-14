@@ -1,8 +1,8 @@
-# TFMCSpiders
+# Spiders
 
 > Procedurally animated spiders, staged by the staff of TF-Minecraft.
 
-TFMCSpiders brings Cinderweavers to TF-Minecraft: organic dark fantasy spiders with rounded charcoal-brown abdomens, tapered legs, clustered red eyes and curved fangs. Every leg steps, climbs and gallops through procedural animation, so a spider crossing a cave floor, a wall or a ceiling finds its own footing.
+Spiders brings Cinderweavers to TF-Minecraft: organic dark fantasy spiders with rounded charcoal-brown abdomens, tapered legs, clustered red eyes and curved fangs. Every leg steps, climbs and gallops through procedural animation, so a spider crossing a cave floor, a wall or a ceiling finds its own footing.
 
 Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a mimic among ordinary chests. Anyone nearby can fight back: arrows, thrown items and swings hit the spider and push it away.
 
@@ -23,13 +23,13 @@ Spiders are staff-operated test entities: they have no health, loot or hostile A
 
 ## Credits
 
-TFMCSpiders is a fork of [TheCymaera's minecraft-spider](https://github.com/TheCymaera/minecraft-spider), made for a video series about procedural animation:
+Spiders is a fork of [TheCymaera's minecraft-spider](https://github.com/TheCymaera/minecraft-spider), made for a video series about procedural animation:
 [walking](https://youtu.be/Hc9x1e85L0w), [galloping](https://youtu.be/r70xJytj0sw) and [robots](https://youtu.be/PSnPOYeTW-0).
 The TFMC Cinderweavers, mimics, staff tools, climbing, pouncing, hits and shroud were added by [Justinas Launikonis](https://github.com/JustinasLa).
 
 ## Documentation
 
-[Project documentation](https://github.com/TF-Minecraft/Docs/blob/main/projects/TFMCSpiders/README.md)
+[Project documentation](https://github.com/TF-Minecraft/Docs/blob/main/projects/Spiders/README.md)
 
 Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs).
 
