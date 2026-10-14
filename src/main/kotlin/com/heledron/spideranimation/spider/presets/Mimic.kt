@@ -59,9 +59,9 @@ internal fun mimicWalkGait() = Gait.defaultWalk().apply {
     moving.triggerZoneRadius = .6
 }
 
+/** The flight gait: 7 blocks/s, faster than a sprinting player. */
 internal fun mimicGallopGait() = Gait.defaultGallop().apply {
-    maxSpeed = 0.28
-    legMoveSpeed = .45
+    setSpeed(.35)
     stationary.bodyHeight = MimicShape.STANDING_HEIGHT
     moving.bodyHeight = MimicShape.GALLOP_HEIGHT
 }

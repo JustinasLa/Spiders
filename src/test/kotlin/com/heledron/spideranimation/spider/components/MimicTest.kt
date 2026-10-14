@@ -20,7 +20,9 @@ import org.joml.Vector3f
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -91,6 +93,52 @@ class MimicTest {
         assertEquals(4, plan.legs.size)
         assertTrue(plan.legs.take(2).all { it.restPosition.z > 0 } && plan.legs.drop(2).all { it.restPosition.z < 0 })
         assertTrue(plan.legs.all { it.segments.size == 3 })
+    }
+
+    @Test
+    fun `woken mimic gallops straight away from the player`() {
+        val world = Room { _, y, _ -> y in -3..-1 }.world()
+        `when`(world.isChunkGenerated(anyInt(), anyInt())).thenReturn(true)
+        val walk = mimicWalkGait()
+        val gallop = mimicGallopGait()
+        val plan = mimicBodyPlan()
+        val options = mock(SpiderOptions::class.java)
+        // the mimic asks for its gallop; the mock always answers with it
+        `when`(options.gait).thenReturn(gallop)
+        `when`(options.walkGait).thenReturn(walk)
+        `when`(options.gallopGait).thenReturn(gallop)
+        `when`(options.pounce).thenReturn(PounceOptions())
+        `when`(options.bodyPlan).thenReturn(plan)
+        applyMimicRise(options, 0.0)
+
+        val app = ECS()
+        setupSpiderBody(app)
+        setupLocomotion(app)
+        setupPounce(app)
+        val body = SpiderBody.create(world, Vector(.5, MimicShape.RESTING_HEIGHT, .5))
+        val locomotion = Locomotion()
+        // the player stands just behind the chest, to the north-west
+        val player = Vector(-1.5, 0.0, -2.5)
+        val mimic = Mimic(MimicPose(plan.bodyModel), waker = null, threat = { player })
+        val entity = app.spawn(body, options, locomotion, mimic)
+
+        var maxTilt = 0.0
+        repeat(600) { tick ->
+            mimic.update(entity, body, options, locomotion)
+            app.update()
+            assertTrue(listOf(body.position.x, body.position.y, body.position.z).all(Double::isFinite), "t=$tick")
+            if (tick > Mimic.WAKE_TICKS + 20) maxTilt = maxOf(maxTilt, 1 - UP_VECTOR.rotate(body.orientation).y)
+        }
+
+        assertEquals(MimicState.FLEEING, mimic.state)
+        verify(options).gallop = true
+        val away = body.position.clone().subtract(player).setY(0)
+        assertTrue(away.length() > 150, "only ${away.length()} blocks away after 30 s")
+        // it ran directly away: the escape line from the player through the chest
+        val line = Vector(.5, 0.0, .5).subtract(player).setY(0).normalize()
+        assertTrue(away.normalize().dot(line) > .97, "veered off: $away")
+        assertTrue(maxTilt < .1, "wobbled: $maxTilt")
+        assertEquals(MimicShape.GALLOP_HEIGHT, body.position.y, .35)
     }
 
     @Test

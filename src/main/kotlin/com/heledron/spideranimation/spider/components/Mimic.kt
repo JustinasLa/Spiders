@@ -27,6 +27,7 @@ import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.Sound
+import org.bukkit.SoundCategory
 import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
@@ -49,6 +50,7 @@ import org.bukkit.inventory.InventoryHolder
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 import java.util.UUID
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
@@ -57,10 +59,19 @@ import kotlin.math.sin
 import kotlin.random.Random
 import org.bukkit.block.data.type.Chest as ChestData
 
-enum class MimicState { WAKING, AWAKE, SETTLING, CROUCHING }
+enum class MimicState { WAKING, FLEEING, AWAKE, SETTLING, CROUCHING }
 
-/** A chest that stands up when touched, chases whoever woke it, then settles back into a chest. */
-class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
+/**
+ * A chest that stands up when touched, screeches, gallops [Mimic.FLEE_DISTANCE] blocks away from
+ * whoever woke it, then settles back into a chest.
+ *
+ * @param threat where the mimic is fleeing from, in its own world; defaults to the waker's position.
+ */
+class Mimic(
+    val pose: MimicPose,
+    val waker: UUID?,
+    private val threat: ((SpiderBody) -> Vector?)? = null,
+) : ECSComponent {
     var state = MimicState.WAKING; private set
     var stateTicks = 0; private set
     /** 0 = sitting as a chest, 1 = standing. */
@@ -70,7 +81,14 @@ class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
     private var chompTick = -1
     private var nextChomp = Random.nextInt(20, 40)
     var idleTicks = 0; private set
-    private var chaseTicks = CHASE_TICKS
+
+    /** Last place the threat was seen; the mimic keeps running from it if the player leaves. */
+    private var lastThreat: Vector? = null
+    /** Turn off the straight escape line, used to get round whatever it's stuck on. */
+    private var detour = 0.0
+    private var fleeDirection: Vector? = null
+    private var progressCheck: Vector? = null
+    private var stuckChecks = 0
 
     var restCell: Block? = null; private set
     var restFacing = BlockFace.SOUTH; private set
@@ -99,25 +117,40 @@ class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
                 rise = smoothstep(stateTicks.toDouble() / WAKE_TICKS)
                 // the lid bursts open, then relaxes
                 lidTarget = if (stateTicks < 5) 75f.toRadians() else 35f.toRadians()
-                wakerNear(body)?.let { locomotion?.face(it.clone().setY(0), PRIORITY) }
-                if (stateTicks >= WAKE_TICKS) enter(MimicState.AWAKE)
+                // already turning its back on whoever woke it
+                threatPosition(body)?.let { locomotion?.face(escapeDirection(body, it), PRIORITY) }
+                if (stateTicks >= WAKE_TICKS) {
+                    if (threatPosition(body) != null && rider == null) {
+                        options.gallop = true
+                        enter(MimicState.FLEEING)
+                    } else {
+                        enter(MimicState.AWAKE)
+                    }
+                }
+            }
+
+            MimicState.FLEEING -> {
+                rise = 1.0
+                // the lid flaps as it runs
+                lidTarget = (30f + 18f * sin(currentTick * .9f)).toRadians()
+                val from = threatPosition(body)
+                val direction = from?.let { escapeDirection(body, it) }
+                fleeDirection = direction
+                val escaped = from == null || horizontalDistance(body.position, from) >= FLEE_DISTANCE
+                if (rider != null || escaped || direction == null || !groundAheadExists(body, direction)) {
+                    fleeDirection = null
+                    options.gallop = false
+                    if (rider != null || !beginSettling(body)) enter(MimicState.AWAKE)
+                } else {
+                    locomotion?.face(direction, PRIORITY)
+                    locomotion?.walk(direction.clone().multiply(options.gait.maxSpeed), PRIORITY)
+                    checkProgress(body)
+                }
             }
 
             MimicState.AWAKE -> {
                 rise = 1.0
                 lidTarget = (22f + 4f * sin(currentTick * .15f)).toRadians()
-
-                val toWaker = if (chaseTicks > 0 && rider == null) wakerNear(body) else null
-                if (toWaker != null) {
-                    chaseTicks--
-                    val flat = toWaker.clone().setY(0)
-                    locomotion?.face(flat, PRIORITY)
-                    if (flat.length() > CHASE_STOP_DISTANCE) {
-                        locomotion?.walk(flat.normalize().multiply(options.gait.maxSpeed), PRIORITY)
-                    } else if (nextChomp > 12) {
-                        nextChomp = Random.nextInt(4, 12)
-                    }
-                }
 
                 idleTicks = if (body.isWalking || rider != null) 0 else idleTicks + 1
                 if (idleTicks >= IDLE_SLEEP_TICKS && !beginSettling(body)) idleTicks = IDLE_SLEEP_TICKS / 2
@@ -140,7 +173,7 @@ class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
                 steerToRestCell(body, options, locomotion)
                 if (stateTicks >= CROUCH_TICKS + 3 && !MimicChests.rest(entity, body, this)) {
                     // the spot was taken while it sat down: stand back up
-                    chaseTicks = 0
+                    lastThreat = null
                     enter(MimicState.WAKING)
                 }
             }
@@ -171,11 +204,54 @@ class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
         return if (chompTick <= 3) 0f else 55f.toRadians()
     }
 
-    private fun wakerNear(body: SpiderBody): Vector? {
-        val player = waker?.let(Bukkit::getPlayer) ?: return null
-        if (player.world != body.world || player.isDead) return null
-        val offset = player.location.toVector().subtract(body.position)
-        return offset.takeIf { it.lengthSquared() < CHASE_RANGE * CHASE_RANGE }
+    private fun threatPosition(body: SpiderBody): Vector? {
+        val seen = if (threat != null) threat.invoke(body) else waker?.let(Bukkit::getPlayer)
+            ?.takeIf { it.world == body.world && !it.isDead }?.location?.toVector()
+        if (seen != null) lastThreat = seen.clone()
+        return lastThreat
+    }
+
+    /** Straight away from the threat across the ground, turned by [detour] while working round an obstacle. */
+    private fun escapeDirection(body: SpiderBody, from: Vector): Vector {
+        val away = body.position.clone().subtract(from).setY(0)
+        if (away.lengthSquared() < 1e-6) away.copy(body.forwardDirection().setY(0))
+        if (away.lengthSquared() < 1e-6) away.copy(Vector(0, 0, 1))
+        return away.normalize().rotateAroundY(detour)
+    }
+
+    /** Every two seconds: if it has barely moved, try a wider detour, alternating sides. */
+    private fun checkProgress(body: SpiderBody) {
+        if (stateTicks % PROGRESS_CHECK_TICKS != 0) return
+        val previous = progressCheck
+        progressCheck = body.position.clone()
+        if (previous == null) return
+        if (horizontalDistance(previous, body.position) < MIN_PROGRESS) {
+            stuckChecks++
+            val side = if (stuckChecks % 2 == 1) 1 else -1
+            detour = side * DETOUR_STEP * ((stuckChecks + 1) / 2).coerceAtMost(3)
+        } else if (stuckChecks > 0) {
+            stuckChecks = 0
+            detour = 0.0
+        }
+    }
+
+    private fun pointAhead(body: SpiderBody, direction: Vector) =
+        body.position.clone().add(direction.clone().multiply(LOOK_AHEAD))
+
+    /** It runs on through chunks the plugin keeps loaded for it, but never into terrain that hasn't been generated. */
+    private fun groundAheadExists(body: SpiderBody, direction: Vector): Boolean {
+        val ahead = pointAhead(body, direction)
+        return body.world.isChunkGenerated(floor(ahead.x).toInt() shr 4, floor(ahead.z).toInt() shr 4)
+    }
+
+    /** Chunks to keep loaded: the one it stands in and, while fleeing, the one it's running into. */
+    internal fun wantedChunks(body: SpiderBody): List<Long> {
+        val chunks = mutableListOf(chunkKey(body.position))
+        val direction = fleeDirection
+        if (state == MimicState.FLEEING && direction != null && groundAheadExists(body, direction)) {
+            chunks += chunkKey(pointAhead(body, direction))
+        }
+        return chunks
     }
 
     /** Walk onto the middle of the rest cell and turn square to it. True once lined up. */
@@ -195,9 +271,11 @@ class Mimic(val pose: MimicPose, val waker: UUID?) : ECSComponent {
     companion object {
         const val WAKE_TICKS = 14
         const val CROUCH_TICKS = 14
-        const val CHASE_TICKS = 20 * 8
-        const val CHASE_RANGE = 16.0
-        const val CHASE_STOP_DISTANCE = 1.8
+        const val FLEE_DISTANCE = 250.0
+        const val PROGRESS_CHECK_TICKS = 40
+        const val MIN_PROGRESS = 1.5
+        const val DETOUR_STEP = PI / 4
+        const val LOOK_AHEAD = 12.0
         const val IDLE_SLEEP_TICKS = 20 * 20
         const val SETTLE_TIMEOUT_TICKS = 20 * 4
         /** Above default steering, below staff tools, riders and pounces. */
@@ -214,6 +292,35 @@ internal fun applyMimicRise(options: SpiderOptions, rise: Double) {
     options.gallopGait.stationary.bodyHeight = resting.lerp(MimicShape.STANDING_HEIGHT, rise)
     options.gallopGait.moving.bodyHeight = resting.lerp(MimicShape.GALLOP_HEIGHT, rise)
 }
+
+private fun chunkKey(position: Vector): Long {
+    val x = floor(position.x).toInt() shr 4
+    val z = floor(position.z).toInt() shr 4
+    return (x.toLong() shl 32) or (z.toLong() and 0xffffffffL)
+}
+
+/** Plugin chunk tickets held for running mimics, so they aren't stranded where no player is. */
+private object MimicChunkTickets {
+    private val held = mutableMapOf<World, MutableSet<Long>>()
+
+    fun sync(app: ECS) {
+        val wanted = mutableMapOf<World, MutableSet<Long>>()
+        for ((entity, body, mimic) in app.query<ECSEntity, SpiderBody, Mimic>()) {
+            if (entity.scheduledForRemoval) continue
+            wanted.getOrPut(body.world) { mutableSetOf() } += mimic.wantedChunks(body)
+        }
+        for (world in held.keys + wanted.keys) {
+            val have = held.getOrPut(world) { mutableSetOf() }
+            val want = wanted[world].orEmpty()
+            for (key in want - have) world.addPluginChunkTicket((key shr 32).toInt(), key.toInt(), currentPlugin)
+            for (key in have - want) world.removePluginChunkTicket((key shr 32).toInt(), key.toInt(), currentPlugin)
+            have.retainAll(want)
+            have += want
+        }
+    }
+}
+
+private fun horizontalDistance(a: Vector, b: Vector) = Vector(a.x - b.x, 0.0, a.z - b.z).length()
 
 internal fun smoothstep(t: Double): Double {
     val x = t.coerceIn(0.0, 1.0)
@@ -281,8 +388,12 @@ object MimicChests {
         AppState.spawnMimic(world, floor, facing.direction, waker?.uniqueId) ?: return false
 
         val centre = floor.clone().add(Vector(0.0, MimicShape.RESTING_HEIGHT, 0.0))
-        world.playSound(centre, Sound.BLOCK_CHEST_OPEN, 1f, .6f)
-        world.playSound(centre, Sound.ENTITY_HOGLIN_ANGRY, .5f, 1.4f)
+        // A loud screech; volumes above 1 carry 16 blocks further per unit.
+        val location = centre.toLocation(world)
+        world.playSound(location, Sound.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 1.5f, .6f)
+        world.playSound(location, Sound.ENTITY_FOX_SCREECH, SoundCategory.HOSTILE, 4f, .7f)
+        world.playSound(location, Sound.ENTITY_GHAST_SCREAM, SoundCategory.HOSTILE, 3f, 1.6f)
+        world.playSound(location, Sound.ENTITY_ENDERMAN_SCREAM, SoundCategory.HOSTILE, 2f, .8f)
         world.spawnParticle(Particle.BLOCK, centre.toLocation(world), 24, .3, .3, .3, 0.0, blockData)
 
         // Anything stuffed inside is spat out of its mouth.
@@ -325,6 +436,7 @@ fun setupMimic(app: ECS) {
             if (entity.scheduledForRemoval) continue
             mimic.update(entity, body, options, entity.query<Locomotion>())
         }
+        MimicChunkTickets.sync(app)
     }
 }
 

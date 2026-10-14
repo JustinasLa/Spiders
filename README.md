@@ -89,10 +89,14 @@ matching, which looks washed out with bright gamma, is still available with
 **Mimic.** `/spider mimic place` (or `/spider spawn mimic`) puts a dormant mimic
 on the floor you aim at, facing you: a real chest block, so it looks exactly like
 one and stays put through restarts. Anyone who right-clicks or hits it wakes it.
-The chest bursts open, rises on four long legs, turns on whoever woke it and chases
-them for about eight seconds, snapping its lid and lolling its tongue. Anything
-hoppered or stuffed inside is spat out. After 20 idle seconds it walks onto the
-nearest free block, squares up and sits back down as a chest. It can't be opened,
+The chest bursts open with a loud screech that carries about 60 blocks, rises on
+four long legs, turns its back on whoever woke it and gallops away at 7 blocks/s,
+lid flapping. It keeps running directly away from that player (around obstacles
+if it gets stuck) until it's 250 blocks from them, then sits back down as a chest
+for them to hunt down. The plugin keeps the chunks it runs through loaded, but it
+stops early rather than enter terrain that has never been generated. Anything
+hoppered or stuffed inside is spat out. Woken by the console, with no player to
+flee, it stays put and settles back into a chest after 20 idle seconds. It can't be opened,
 emptied by hoppers or blown up, and only staff can break it (in creative mode, to
 remove it). `/spider mimic wake` and `/spider mimic sleep` do the same by command;
 console uses `/spider mimic place|wake at <world> <x> <y> <z>`. Awake mimics count
@@ -123,7 +127,7 @@ them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
 Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.12.jar`** shaded
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.13.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
