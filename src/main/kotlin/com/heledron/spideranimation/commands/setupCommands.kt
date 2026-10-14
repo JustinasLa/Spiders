@@ -38,6 +38,7 @@ import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Player
+import org.bukkit.util.Vector
 import java.util.concurrent.CompletableFuture
 
 private const val SUCCESS = 1
@@ -52,7 +53,7 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
     Commands.literal("spider")
         .requires { StaffAccess.canUse(it.sender) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player> [blocks/s], climb <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
@@ -254,41 +255,65 @@ private fun speedCommand(): LiteralArgumentBuilder<CommandSourceStack> {
         .then(gaitArgument("gallop") { it.gallopGait })
 }
 
+/** Starts a pounce by the targeted spider; [name] describes the target in messages to the staff member. */
+private fun startPounce(
+    ctx: CommandContext<CommandSourceStack>, speed: Double?, name: String,
+    target: (body: SpiderBody) -> Vector?,
+): Int {
+    val actor = ctx.source.sender
+    val entity = requireTargetSpider(ctx.source)
+    val body = entity.query<SpiderBody>() ?: throw commandError("No spider found")
+    val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
+    if (speed != null) options.gallopGait.setSpeed(speed / TICKS_PER_SECOND)
+
+    fun actorPresent() = actor !is Player || actor.isOnline
+    entity.stopPounce()
+    entity.addComponent(Pounce(
+        // the chase also ends if the staff member loses access or leaves
+        target = { if (StaffAccess.canUse(actor) && actorPresent()) target(body) else null },
+        onEnd = { outcome, landedDistance ->
+            if (actorPresent()) actor.sendPlainMessage(when (outcome) {
+                Pounce.Outcome.LANDED -> "Pounced at $name: landed ${"%.1f".format(landedDistance ?: 0.0)} blocks away"
+                Pounce.Outcome.TARGET_LOST -> "Pounce ended: lost $name"
+                Pounce.Outcome.GAVE_UP -> "Pounce ended: could not reach $name in time"
+                Pounce.Outcome.STOPPED -> "Pounce at $name stopped"
+            })
+        },
+    ))
+    val gallop = "%.1f".format(options.gallopGait.maxSpeed * TICKS_PER_SECOND)
+    actor.sendPlainMessage("Pouncing at $name (gallop $gallop blocks/s). /spider pounce stop cancels.")
+    return SUCCESS
+}
+
 private fun pounceCommand(): LiteralArgumentBuilder<CommandSourceStack> {
     fun pounce(ctx: CommandContext<CommandSourceStack>, speed: Double?): Int {
-        val actor = ctx.source.sender
         val player = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"))
             ?: throw commandError("Player not found")
-        val entity = requireTargetSpider(ctx.source)
-        val body = entity.query<SpiderBody>() ?: throw commandError("No spider found")
-        val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
-        if (player.world != body.world) throw commandError("${player.name} is not in the spider's world")
-        if (speed != null) options.gallopGait.setSpeed(speed / TICKS_PER_SECOND)
+        val spiderWorld = requireTargetSpider(ctx.source).query<SpiderBody>()?.world
+        if (player.world != spiderWorld) throw commandError("${player.name} is not in the spider's world")
+        return startPounce(ctx, speed, player.name) { body ->
+            val reachable = player.isOnline && player.world == body.world && player.gameMode != GameMode.SPECTATOR &&
+                player.location.toVector().distanceSquared(body.position) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE
+            if (reachable) player.location.toVector() else null
+        }
+    }
 
-        entity.stopPounce()
-        entity.addComponent(Pounce(
-            target = {
-                // the chase ends if the player leaves or the staff member loses access
-                val stillValid = StaffAccess.canUse(actor) && (actor !is Player || actor.isOnline) &&
-                    player.isOnline && player.world == body.world && player.gameMode != GameMode.SPECTATOR &&
-                    player.location.toVector().distanceSquared(body.position) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE
-                if (stillValid) player.location.toVector() else null
-            },
-            onEnd = { outcome, landedDistance ->
-                if (actor !is Player || actor.isOnline) actor.sendPlainMessage(when (outcome) {
-                    Pounce.Outcome.LANDED -> "Pounced on ${player.name}: landed ${"%.1f".format(landedDistance ?: 0.0)} blocks away"
-                    Pounce.Outcome.TARGET_LOST -> "Pounce ended: lost ${player.name}"
-                    Pounce.Outcome.GAVE_UP -> "Pounce ended: could not reach ${player.name} in time"
-                    Pounce.Outcome.STOPPED -> "Pounce at ${player.name} stopped"
-                })
-            },
-        ))
-        val gallop = "%.1f".format(options.gallopGait.maxSpeed * TICKS_PER_SECOND)
-        actor.sendPlainMessage("Pouncing at ${player.name} (gallop $gallop blocks/s). /spider pounce stop cancels.")
-        return SUCCESS
+    // a fixed spot in the spider's world, e.g. for staged scenes
+    fun pounceAt(ctx: CommandContext<CommandSourceStack>, speed: Double?): Int {
+        val spot = Vector(DoubleArgumentType.getDouble(ctx, "x"), DoubleArgumentType.getDouble(ctx, "y"), DoubleArgumentType.getDouble(ctx, "z"))
+        return startPounce(ctx, speed, "${spot.blockX}, ${spot.blockY}, ${spot.blockZ}") { spot }
     }
 
     return Commands.literal("pounce")
+        .then(Commands.literal("at").then(
+            Commands.argument("x", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0)).then(
+                Commands.argument("y", DoubleArgumentType.doubleArg()).then(
+                    Commands.argument("z", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0))
+                        .executes { ctx -> pounceAt(ctx, null) }
+                        .then(speedArgument().executes { ctx -> pounceAt(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")) })
+                )
+            )
+        ))
         .then(Commands.literal("stop").executes { ctx ->
             val entity = requireTargetSpider(ctx.source)
             // whoever started the pounce is told it stopped
