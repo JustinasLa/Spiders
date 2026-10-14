@@ -1,0 +1,540 @@
+package net.tfminecraft.tfmcspiders.commands
+
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSyntaxException
+import net.tfminecraft.tfmcspiders.AppState
+import net.tfminecraft.tfmcspiders.MiscellaneousOptions
+import net.tfminecraft.tfmcspiders.SpiderAnimationPlugin
+import net.tfminecraft.tfmcspiders.StaffAccess
+import net.tfminecraft.tfmcspiders.spider.components.Cloak
+import net.tfminecraft.tfmcspiders.spider.components.Locomotion
+import net.tfminecraft.tfmcspiders.spider.components.Mimic
+import net.tfminecraft.tfmcspiders.spider.components.Pounce
+import net.tfminecraft.tfmcspiders.spider.components.stopPounce
+import net.tfminecraft.tfmcspiders.spider.components.body.SpiderBody
+import net.tfminecraft.tfmcspiders.spider.components.splay
+import net.tfminecraft.tfmcspiders.spider.configuration.Gait
+import net.tfminecraft.tfmcspiders.spider.configuration.SpiderOptions
+import net.tfminecraft.tfmcspiders.spider.presets.*
+import net.tfminecraft.tfmcspiders.heldSpiderUUID
+import net.tfminecraft.tfmcspiders.utilities.Serializer
+import net.tfminecraft.tfmcspiders.utilities.custom_items.openStaffToolMenu
+import net.tfminecraft.tfmcspiders.utilities.ecs.ECSEntity
+import net.tfminecraft.tfmcspiders.utilities.events.interval
+import net.tfminecraft.tfmcspiders.utilities.events.runLater
+import com.mojang.brigadier.Message
+import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.arguments.DoubleArgumentType
+import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
+import com.mojang.brigadier.suggestion.Suggestions
+import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import io.papermc.paper.command.brigadier.CommandSourceStack
+import io.papermc.paper.command.brigadier.Commands
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import org.bukkit.Bukkit
+import org.bukkit.GameMode
+import org.bukkit.Material
+import org.bukkit.block.data.BlockData
+import org.bukkit.entity.Player
+import org.bukkit.util.Vector
+import java.util.concurrent.CompletableFuture
+
+private const val SUCCESS = 1
+
+fun setupCommands(plugin: SpiderAnimationPlugin) {
+    plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+        event.registrar().register(spiderCommandTree { plugin.writeAndSaveConfig() }.build(), "Spider animation")
+    }
+}
+
+fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> =
+    Commands.literal("spider")
+        .requires { StaffAccess.canUse(it.sender) }
+        .executes { ctx ->
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|mimic|0.25–2.5>, mimic <place|wake|sleep>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
+            SUCCESS
+        }
+        .then(optionsCommand(afterChange))
+        .then(scaleCommand(afterChange))
+        .then(gaitCommand())
+        .then(climbCommand())
+        .then(shroudCommand())
+        .then(speedCommand())
+        .then(pounceCommand())
+        .then(splayCommand())
+        .then(itemsCommand())
+        .then(Commands.literal("tools").executes { ctx ->
+            val player = ctx.source.sender as? Player ?: throw commandError("Players only")
+            openStaffToolMenu(player)
+            SUCCESS
+        })
+        .then(spawnCommand())
+        .then(mimicCommand())
+        .then(listCommand())
+        .then(removeCommand())
+        // temp debug
+        .then(Commands.literal("fall").then(Commands.argument("height", DoubleArgumentType.doubleArg()).executes { ctx ->
+            val height = DoubleArgumentType.getDouble(ctx, "height")
+            val spider = findTargetSpider(ctx.source) ?: return@executes SUCCESS
+            val body = spider.query<SpiderBody>() ?: return@executes SUCCESS
+            val newPosition = body.position.clone().apply { y += height }
+            body.teleport(spider, newPosition)
+        
+            SUCCESS
+        }))
+        .then(Commands.literal("walk").then(Commands.argument("ticks", IntegerArgumentType.integer(1)).executes { ctx ->
+            val ticks = IntegerArgumentType.getInteger(ctx, "ticks")
+            val spider = requireTargetSpider(ctx.source)
+            val options = spider.query<SpiderOptions>() ?: throw commandError("No spider found")
+
+            var remaining = ticks
+            interval(0, 1) { self ->
+                val body = spider.query<SpiderBody>()
+                val locomotion = spider.query<Locomotion>()
+
+                val actor = ctx.source.sender
+                if (!StaffAccess.canUse(actor) || (actor is Player && !actor.isOnline) || remaining-- <= 0 || body == null || locomotion == null || spider.scheduledForRemoval) {
+                    self.close()
+                    return@interval
+                }
+
+                locomotion.walk(body.forwardDirection().multiply(options.gait.maxSpeed))
+            }
+
+            SUCCESS
+        }))
+
+private fun optionsCommand(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> {
+    // KNOWN LIMITATION: A path containing `[` must be quoted.
+    // Paper only accepts CustomArgumentType if its native type is one of the six Brigadier primitives.
+    // A greedy string would make the client treat the rest of the line as part of the path and
+    // prevent auto-completion for subsequent arguments.
+    // Replace with NBTPathArgument once Paper supports it, or if porting to a mod.
+    fun pathArgument() =
+        Commands.argument("path", StringArgumentType.string())
+            .suggests { ctx, builder -> suggestOptionPath(ctx.source, builder) }
+
+    return Commands.literal("options").then(
+        pathArgument()
+            .executes(::getOption)
+            .then(
+                Commands.literal("set").then(
+                    Commands.argument("value", StringArgumentType.greedyString())
+                        .suggests(::suggestOptionValue)
+                        .executes { ctx -> setOption(ctx, afterChange) }
+                )
+            )
+            .then(
+                Commands.literal("reset").executes { ctx -> resetOption(ctx, afterChange) }
+            )
+    )
+}
+
+private fun parsePath(option: String): Pair<String, String> {
+    val separator = option.indexOf('.')
+    return if (separator < 0) option to ""
+    else option.substring(0, separator) to option.substring(separator + 1)
+}
+
+private fun getOption(ctx: CommandContext<CommandSourceStack>): Int {
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
+    val group = requireOptionGroup(groupName)
+    val live = group.requireLive(ctx.source)
+
+    val value = Serializer.path.get(live, subPath)
+        ?: throw commandError("\"$subPath\" does not exist in $groupName")
+
+    ctx.source.sender.sendPlainMessage("$rawPath is ${Serializer.serialize(value)}")
+    return SUCCESS
+}
+
+private fun setOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
+    val group = requireOptionGroup(groupName)
+    val live = group.requireLive(ctx.source)
+    val raw = StringArgumentType.getString(ctx, "value")
+
+    val value = resolveSymbol(raw) ?: try {
+        Serializer.gson.fromJson(raw, Any::class.java)
+    } catch (_: JsonSyntaxException) {
+        // treat unparseable values as raw strings (enums, block ids)
+        raw
+    }
+
+    if (!group.edit(live) { writeOption(it, subPath, value) }) {
+        throw commandError("Could not set $rawPath")
+    }
+
+    afterChange()
+
+    ctx.source.sender.sendPlainMessage("Set $rawPath to $raw")
+    return SUCCESS
+}
+
+private fun resetOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
+    val group = requireOptionGroup(groupName)
+    val live = group.requireLive(ctx.source)
+
+    val value = Serializer.path.get(group.default(), subPath)
+        ?: throw commandError("\"$rawPath\" does not exist")
+
+    if (!group.edit(live) { writeOption(it, subPath, value) }) {
+        throw commandError("Could not reset $rawPath")
+    }
+
+    afterChange()
+
+    if (subPath.isEmpty()) ctx.source.sender.sendPlainMessage("Reset all of $groupName")
+    else ctx.source.sender.sendPlainMessage("Reset $rawPath to ${Serializer.serialize(value)}")
+    return SUCCESS
+}
+
+private fun scaleCommand(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> =
+    Commands.literal("scale").then(
+        Commands.argument("scale", DoubleArgumentType.doubleArg(0.25, 2.5))
+            .executes { ctx ->
+                val scale = DoubleArgumentType.getDouble(ctx, "scale")
+
+                val entity = requireTargetSpider(ctx.source)
+                if (entity.query<Mimic>() != null) throw commandError("Mimics stay chest-sized.")
+                val spider = entity.query<SpiderBody>() ?: throw commandError("No spider found")
+                val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
+
+                val oldScale = options.bodyPlan.scale
+                options.walkGait.scale(scale / oldScale)
+                options.gallopGait.scale(scale / oldScale)
+                options.bodyPlan.scale(scale / oldScale)
+                spider.updateBodyPlan()
+
+                afterChange()
+                ctx.source.sender.sendPlainMessage("Set scale to $scale")
+                SUCCESS
+            }
+    )
+
+private fun gaitCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setGait(ctx: CommandContext<CommandSourceStack>, gallop: Boolean): Int {
+        val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+        options.gallop = gallop
+        ctx.source.sender.sendPlainMessage(if (gallop) "Gallop mode" else "Walk mode")
+        return SUCCESS
+    }
+
+    return Commands.literal("gait")
+        .then(Commands.literal("walk").executes { ctx -> setGait(ctx, false) })
+        .then(Commands.literal("gallop").executes { ctx -> setGait(ctx, true) })
+}
+
+private const val MIN_SPEED = 0.5
+private const val MAX_SPEED = 20.0
+private const val TICKS_PER_SECOND = 20.0
+
+/** Blocks per second, as typed by staff. */
+private fun speedArgument() = Commands.argument("blocksPerSecond", DoubleArgumentType.doubleArg(MIN_SPEED, MAX_SPEED))
+
+private fun speedCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun gaitArgument(name: String, gait: (SpiderOptions) -> Gait) = Commands.literal(name)
+        .executes { ctx ->
+            val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+            ctx.source.sender.sendPlainMessage("$name speed: ${"%.1f".format(gait(options).maxSpeed * TICKS_PER_SECOND)} blocks/s")
+            SUCCESS
+        }
+        .then(speedArgument().executes { ctx ->
+            val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+            val speed = DoubleArgumentType.getDouble(ctx, "blocksPerSecond")
+            gait(options).setSpeed(speed / TICKS_PER_SECOND)
+            ctx.source.sender.sendPlainMessage("Set $name speed to $speed blocks/s")
+            SUCCESS
+        })
+
+    return Commands.literal("speed")
+        .then(gaitArgument("walk") { it.walkGait })
+        .then(gaitArgument("gallop") { it.gallopGait })
+}
+
+/** Starts a pounce by the targeted spider; [name] describes the target in messages to the staff member. */
+private fun startPounce(
+    ctx: CommandContext<CommandSourceStack>, speed: Double?, name: String,
+    target: (body: SpiderBody) -> Vector?,
+): Int {
+    val actor = ctx.source.sender
+    val entity = requireTargetSpider(ctx.source)
+    val body = entity.query<SpiderBody>() ?: throw commandError("No spider found")
+    val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
+    if (speed != null) options.gallopGait.setSpeed(speed / TICKS_PER_SECOND)
+
+    fun actorPresent() = actor !is Player || actor.isOnline
+    entity.stopPounce()
+    entity.addComponent(Pounce(
+        // the chase also ends if the staff member loses access or leaves
+        target = { if (StaffAccess.canUse(actor) && actorPresent()) target(body) else null },
+        onEnd = { outcome, landedDistance ->
+            if (actorPresent()) actor.sendPlainMessage(when (outcome) {
+                Pounce.Outcome.LANDED -> "Pounced at $name: landed ${"%.1f".format(landedDistance ?: 0.0)} blocks away"
+                Pounce.Outcome.TARGET_LOST -> "Pounce ended: lost $name"
+                Pounce.Outcome.GAVE_UP -> "Pounce ended: could not reach $name in time"
+                Pounce.Outcome.STOPPED -> "Pounce at $name stopped"
+            })
+        },
+    ))
+    val gallop = "%.1f".format(options.gallopGait.maxSpeed * TICKS_PER_SECOND)
+    actor.sendPlainMessage("Pouncing at $name (gallop $gallop blocks/s). /spider pounce stop cancels.")
+    return SUCCESS
+}
+
+private fun pounceCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun pounce(ctx: CommandContext<CommandSourceStack>, speed: Double?): Int {
+        val player = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"))
+            ?: throw commandError("Player not found")
+        val spiderWorld = requireTargetSpider(ctx.source).query<SpiderBody>()?.world
+        if (player.world != spiderWorld) throw commandError("${player.name} is not in the spider's world")
+        return startPounce(ctx, speed, player.name) { body ->
+            val reachable = player.isOnline && player.world == body.world && player.gameMode != GameMode.SPECTATOR &&
+                player.location.toVector().distanceSquared(body.position) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE
+            if (reachable) player.location.toVector() else null
+        }
+    }
+
+    // a fixed spot in the spider's world, e.g. for staged scenes
+    fun pounceAt(ctx: CommandContext<CommandSourceStack>, speed: Double?): Int {
+        val spot = Vector(DoubleArgumentType.getDouble(ctx, "x"), DoubleArgumentType.getDouble(ctx, "y"), DoubleArgumentType.getDouble(ctx, "z"))
+        return startPounce(ctx, speed, "${spot.blockX}, ${spot.blockY}, ${spot.blockZ}") { spot }
+    }
+
+    return Commands.literal("pounce")
+        .then(Commands.literal("at").then(
+            Commands.argument("x", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0)).then(
+                Commands.argument("y", DoubleArgumentType.doubleArg()).then(
+                    Commands.argument("z", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0))
+                        .executes { ctx -> pounceAt(ctx, null) }
+                        .then(speedArgument().executes { ctx -> pounceAt(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")) })
+                )
+            )
+        ))
+        .then(Commands.literal("stop").executes { ctx ->
+            val entity = requireTargetSpider(ctx.source)
+            // whoever started the pounce is told it stopped
+            if (entity.query<Pounce>() == null) ctx.source.sender.sendPlainMessage("That spider is not pouncing")
+            entity.stopPounce()
+            SUCCESS
+        })
+        .then(Commands.argument("target", StringArgumentType.word())
+            .suggests { _, builder ->
+                Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(builder.remaining, ignoreCase = true) }.forEach(builder::suggest)
+                builder.buildFuture()
+            }
+            .executes { ctx -> pounce(ctx, null) }
+            .then(speedArgument().executes { ctx -> pounce(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")) }))
+}
+
+private const val MAX_POUNCE_DISTANCE = 96.0
+
+private fun shroudCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setShroud(ctx: CommandContext<CommandSourceStack>, on: Boolean): Int {
+        val entity = requireTargetSpider(ctx.source)
+        val cloak = entity.query<Cloak>() ?: throw commandError("No spider found")
+        if (cloak.active != on) cloak.toggleCloak(AppState.ecs, entity)
+        ctx.source.sender.sendPlainMessage(if (on) "Shroud on" else "Shroud off")
+        return SUCCESS
+    }
+
+    return Commands.literal("shroud")
+        .then(Commands.literal("on").executes { ctx -> setShroud(ctx, true) })
+        .then(Commands.literal("off").executes { ctx -> setShroud(ctx, false) })
+}
+
+private fun climbCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setClimbing(ctx: CommandContext<CommandSourceStack>, climbing: Boolean): Int {
+        val entity = requireTargetSpider(ctx.source)
+        if (entity.query<Mimic>() != null) throw commandError("Mimics keep to the floor so they can sit back down as chests.")
+        val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
+        options.climbing = climbing
+        ctx.source.sender.sendPlainMessage(if (climbing) "Wall climbing on: walls and ceilings" else "Wall climbing off")
+        return SUCCESS
+    }
+
+    return Commands.literal("climb")
+        .then(Commands.literal("on").executes { ctx -> setClimbing(ctx, true) })
+        .then(Commands.literal("off").executes { ctx -> setClimbing(ctx, false) })
+}
+
+private fun splayCommand(): LiteralArgumentBuilder<CommandSourceStack> =
+    Commands.literal("splay")
+        .executes { ctx -> splaySpider(ctx, 0L) }
+        .then(
+            Commands.argument("delay", IntegerArgumentType.integer(0))
+                .executes { ctx -> splaySpider(ctx, IntegerArgumentType.getInteger(ctx, "delay").toLong()) }
+        )
+
+private fun splaySpider(ctx: CommandContext<CommandSourceStack>, delay: Long): Int {
+    val spider = requireTargetSpider(ctx.source)
+    runLater(delay) {
+        if (StaffAccess.canUse(ctx.source.sender) && !spider.scheduledForRemoval) splay(spider)
+    }
+    return SUCCESS
+}
+
+private fun itemsCommand(): LiteralArgumentBuilder<CommandSourceStack> =
+    Commands.literal("items").executes { ctx ->
+        val player = ctx.source.sender as? Player
+            ?: throw commandError("This command can only be used by players")
+        openStaffToolMenu(player)
+        SUCCESS
+    }
+
+private fun writeOption(target: Any, path: String, value: Any?): Boolean {
+    if (path.isNotEmpty()) return Serializer.path.set(target, path, value)
+
+    val root = value ?: return false
+    val fields = Serializer.toMap(root) as? Map<*, *> ?: return false
+    return Serializer.path.setAll(target, fields)
+}
+
+private fun commandError(message: String) = SimpleCommandExceptionType({ message }).create()
+
+private fun suggest(builder: SuggestionsBuilder, options: Iterable<String>): CompletableFuture<Suggestions> {
+    val remaining = builder.remaining.lowercase()
+    for (option in options) if (option.lowercase().startsWith(remaining)) builder.suggest(option)
+    return builder.buildFuture()
+}
+
+private fun findTargetSpider(source: CommandSourceStack): ECSEntity? {
+    val player = source.sender as? Player
+        ?: return AppState.ecs.query<ECSEntity, SpiderBody>().firstOrNull()?.first
+
+    val named = player.heldSpiderUUID()?.let(AppState::findSpiderByUUID)
+    return named ?: AppState.findNearestSpider(player)
+}
+
+private fun requireTargetSpider(source: CommandSourceStack): ECSEntity =
+    findTargetSpider(source) ?: throw commandError("No spider found")
+
+private fun suggestionSource(source: CommandSourceStack, group: OptionGroup): Any =
+    group.live(source) ?: group.default()
+
+private class OptionGroup(
+    val live: (CommandSourceStack) -> Any?,
+    val default: () -> Any,
+    val swap: ((live: Any, draft: Any) -> Boolean)? = null,
+) {
+    fun edit(live: Any, edit: (target: Any) -> Boolean): Boolean {
+        // edit in place
+        if (swap == null) return edit(live)
+
+        // edit draft then swap
+        val draft = Serializer.copyOf(live)
+        return edit(draft) && swap.invoke(live, draft)
+    }
+}
+
+private fun OptionGroup.requireLive(source: CommandSourceStack): Any =
+    live(source) ?: throw commandError("No spider found")
+
+private val OPTION_GROUPS = mapOf(
+    "spider_options" to OptionGroup(
+        live = { source -> findTargetSpider(source)?.query<SpiderOptions>() },
+        default = { defaultPreset() },
+        swap = { live, draft -> (live as SpiderOptions).copyFrom(draft as SpiderOptions); true },
+    ),
+    "global" to OptionGroup(
+        live = { AppState.miscOptions },
+        default = { MiscellaneousOptions() },
+    ),
+)
+
+private fun requireOptionGroup(groupName: String): OptionGroup =
+    OPTION_GROUPS[groupName]
+        ?: throw commandError("Unknown option group \"$groupName\", expected one of ${OPTION_GROUPS.keys.joinToString()}")
+
+private fun suggestOptionPath(source: CommandSourceStack, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+    // Quoted string if needed. See NBT path comment.
+    val typed = builder.remaining.removePrefix("\"")
+    val (groupName, path) = parsePath(typed)
+
+    // Suggest groups
+    if (path.isEmpty()) suggest(builder, OPTION_GROUPS.keys)
+
+    // An exact group name falls through
+    val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
+
+    for (candidate in Serializer.path.completions(suggestionSource(source, group), path)) {
+        val argument = "$groupName.$candidate"
+        val unquotable = argument.all(StringReader::isAllowedInUnquotedString)
+        builder.suggest(if (unquotable) argument else "\"$argument\"")
+    }
+    return builder.buildFuture()
+}
+
+private fun suggestOptionValue(ctx: CommandContext<CommandSourceStack>, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+    val (groupName, path) = parsePath(StringArgumentType.getString(ctx, "path"))
+    val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
+
+    val current = Serializer.path.get(suggestionSource(ctx.source, group), path)
+        ?: return builder.buildFuture()
+
+    for ((text, tooltip) in valueSuggestions(current)) {
+        if (tooltip == null) builder.suggest(text) else builder.suggest(text, Message { tooltip })
+    }
+    return builder.buildFuture()
+}
+
+/**
+ * Returns Pair<suggestion, tooltip>[]
+ */
+private fun valueSuggestions(current: Any): List<Pair<String, String?>> {
+    val symbols = suggestSymbolsFor(current)
+
+    // don't suggest json if symbols are available
+    if (symbols.isNotEmpty()) return symbols
+
+    return when (current) {
+        is Boolean -> listOf("true" to "boolean", "false" to "boolean")
+
+        is Enum<*> -> current.javaClass.enumConstants
+            .map { (it as Enum<*>).name to "${current.javaClass.simpleName} value" }
+
+        is BlockData -> blockIds.map { it to "BlockData" }
+
+        is Number, is Char -> listOf(current.toString() to current.javaClass.simpleName)
+
+        else -> {
+            val type = describeType(current)
+
+            val text = (Serializer.gson.toJsonTree(current) as? JsonPrimitive)?.takeIf { it.isString }?.asString
+            if (text == null) {
+                val json = Serializer.serialize(current)
+                if (json.length <= MAX_VALUE_SUGGESTION_LENGTH) listOf(json to type)
+                else listOf(type to type)
+            } else {
+                val suggestion = if (needsQuoting(text)) Serializer.serialize(text) else text
+                listOf(suggestion to type)
+            }
+        }
+    }
+}
+
+private const val MAX_VALUE_SUGGESTION_LENGTH = 200
+
+private fun needsQuoting(text: String): Boolean = try {
+    Serializer.gson.fromJson(text, Any::class.java) !is String
+} catch (_: Exception) {
+    false
+}
+
+internal fun describeType(value: Any): String = when (value) {
+    is Collection<*> -> value.firstOrNull()?.let { "List<${it.javaClass.simpleName}>" } ?: "List<unknown>"
+    is Map<*, *> -> "map"
+    else -> value.javaClass.simpleName
+}
+
+private val blockIds: List<String> by lazy {
+    Material.entries.filter { it.isBlock }.map { it.key.toString() }
+}

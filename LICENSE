@@ -1,0 +1,15 @@
+Upstream licence terms
+
+TFMCSpiders is a fork of minecraft-spider by TheCymaera
+(https://github.com/TheCymaera/minecraft-spider). The upstream project
+publishes these terms in its README:
+
+    You may use the plugin and source code for both commercial or
+    non-commercial purposes.
+
+    Attribution is appreciated but not due.
+
+    Do not resell without making substantial changes.
+
+No separate licence has been chosen for the TF-Minecraft changes in this
+repository. Third-party dependencies retain their own licenses.
