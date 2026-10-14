@@ -148,7 +148,7 @@ private fun Oklab.moveTowards(target: Oklab, maxDelta: Float): Oklab {
 }
 
 fun setupCloak(app: ECS) {
-    app.onEvent<SpiderProjectileHitEvent> { event ->
+    app.onEvent<SpiderHitEvent> { event ->
         if (!event.forceful) return@onEvent
         val cloak = event.entity.query<Cloak>() ?: return@onEvent
         if (cloak.active) {

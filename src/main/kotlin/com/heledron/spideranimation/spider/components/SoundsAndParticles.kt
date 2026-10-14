@@ -30,8 +30,8 @@ fun setupSoundAndParticles(app: ECS) {
         event.spider.world.playSound(event.spider.position, Sound.ENTITY_SPIDER_STEP, .7f, .6f)
     }
 
-    app.onEvent<SpiderProjectileHitEvent> { event ->
-        // a flinch for staff hits, a dull glance off the carapace otherwise
+    app.onEvent<SpiderHitEvent> { event ->
+        // a flinch for real hits, a dull glance off the carapace for weak ones
         if (event.forceful) event.spider.world.playSound(event.point, Sound.ENTITY_SPIDER_HURT, .5f, .8f)
         else event.spider.world.playSound(event.point, Sound.ENTITY_ARROW_HIT, .6f, .7f)
     }
