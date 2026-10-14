@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>net.tfminecraft</groupId>
-    <artifactId>tfmcspiders</artifactId>
+    <artifactId>spiders</artifactId>
     <version>main-SNAPSHOT</version>
 
-    <name>TFMCSpiders</name>
+    <name>Spiders</name>
     <description>Staff-operated organic dark fantasy spiders for TFMC Minecraft servers.</description>
-    <url>https://github.com/JustinasLa/TFMCSpiders</url>
+    <url>https://github.com/JustinasLa/Spiders</url>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

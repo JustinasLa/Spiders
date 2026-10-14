@@ -1,10 +1,10 @@
 name: TFMCSpiders
 version: '${project.version}'
-main: net.tfminecraft.tfmcspiders.SpiderAnimationPlugin
+main: net.tfminecraft.spiders.SpiderAnimationPlugin
 api-version: '1.21.10'
 description: Staff-operated organic dark fantasy spiders for TFMC.
 authors: [TheCymaera, JustinasLa]
-website: https://github.com/JustinasLa/TFMCSpiders
+website: https://github.com/JustinasLa/Spiders
 
 permissions:
   tfmc.spider.staff:
