@@ -12,7 +12,14 @@ import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
+import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.player.PlayerInteractEntityEvent
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerItemConsumeEvent
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryDragEvent
@@ -37,6 +44,32 @@ fun openCustomItemInventory(player: Player) {
 }
 
 fun setupStaffToolInventory() {
+    // A tool is only ever a tool: no placing the Brood Guide's torch, dyeing signs or sheep with
+    // a charm, steering pigs with the whistle, feeding animals or using it on any block or entity.
+    addEventListener(object : Listener {
+        @EventHandler(priority = EventPriority.LOWEST)
+        fun onUse(event: PlayerInteractEvent) {
+            if (!isStaffTool(event.item)) return
+            event.setUseItemInHand(Event.Result.DENY)
+            if (event.action == Action.RIGHT_CLICK_BLOCK) event.setUseInteractedBlock(Event.Result.DENY)
+        }
+
+        @EventHandler(priority = EventPriority.LOWEST)
+        fun onPlace(event: BlockPlaceEvent) {
+            if (isStaffTool(event.itemInHand)) event.isCancelled = true
+        }
+
+        @EventHandler(priority = EventPriority.LOWEST)
+        fun onUseOnEntity(event: PlayerInteractEntityEvent) {
+            if (isStaffTool(event.player.inventory.getItem(event.hand))) event.isCancelled = true
+        }
+
+        @EventHandler(priority = EventPriority.LOWEST)
+        fun onConsume(event: PlayerItemConsumeEvent) {
+            if (isStaffTool(event.item)) event.isCancelled = true
+        }
+    })
+
     addEventListener(object : Listener {
         @EventHandler
         fun onClick(event: InventoryClickEvent) {
@@ -54,12 +87,30 @@ fun setupStaffToolInventory() {
     })
 }
 
-class CustomItemComponent(val id: String) {
+/** Every tool, so their vanilla uses can be blocked wherever they are held. */
+private val toolComponents = mutableListOf<CustomItemComponent>()
+
+/** True for any staff tool, matched exactly (tag and item type). */
+fun isStaffTool(item: ItemStack?): Boolean = item != null && toolComponents.any { it.isAttached(item) }
+
+/**
+ * A staff tool. An item only counts as this tool if it carries the tool's tag *and* is still the
+ * tool's [material]: a plain item of the same type, or a tagged item of another type, does nothing.
+ */
+class CustomItemComponent(val id: String, val material: Material) {
     private val key by lazy { namespacedID("item_component_$id") }
 
+    init {
+        toolComponents += this
+    }
+
     fun isAttached(item: ItemStack): Boolean {
+        if (item.type != material) return false
         return item.persistentDataContainer.get(key, PersistentDataType.BOOLEAN) == true
     }
+
+    /** A fresh tool for the staff tools menu. */
+    fun create(name: String): ItemStack = createNamedItem(material, name).attach(this)
 
     fun attach(item: ItemStack) {
         item.editPersistentDataContainer { it.set(key, PersistentDataType.BOOLEAN, true) }

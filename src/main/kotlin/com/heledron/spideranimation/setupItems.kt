@@ -11,8 +11,6 @@ import com.heledron.spideranimation.spider.presets.defaultPreset
 import com.heledron.spideranimation.spider.presets.upgradeClockworkAppearance
 import com.heledron.spideranimation.spider.presets.useOrganicSounds
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
-import com.heledron.spideranimation.utilities.custom_items.attach
-import com.heledron.spideranimation.utilities.custom_items.createNamedItem
 import com.heledron.spideranimation.utilities.custom_items.customItemRegistry
 import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -43,8 +41,8 @@ import java.util.UUID
 
 
 fun setupItems() {
-    val spiderComponent = CustomItemComponent("spider")
-    customItemRegistry += { createNamedItem(Material.FERMENTED_SPIDER_EYE, "Cinderweaver Summoning Seal").attach(spiderComponent) }
+    val spiderComponent = CustomItemComponent("spider", Material.FERMENTED_SPIDER_EYE)
+    customItemRegistry += { spiderComponent.create("Cinderweaver Summoning Seal") }
     spiderComponent.onGestureUse { player, item ->
         val storedUuid = item.spiderUUID
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
@@ -83,8 +81,8 @@ fun setupItems() {
     }
 
 
-    val disableLegComponent = CustomItemComponent("disableLeg")
-    customItemRegistry += { createNamedItem(Material.RABBIT_HIDE, "Limb Binding Charm").attach(disableLegComponent) }
+    val disableLegComponent = CustomItemComponent("disableLeg", Material.RABBIT_HIDE)
+    customItemRegistry += { disableLegComponent.create("Limb Binding Charm") }
     onTick {
         val players = disableLegComponent.getPlayersHoldingItem().toSet()
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
@@ -104,8 +102,8 @@ fun setupItems() {
         }
     }
 
-    val toggleDebugComponent = CustomItemComponent("toggleDebug")
-    customItemRegistry += { createNamedItem(Material.BONE, "Broodkeeper's Sight").attach(toggleDebugComponent) }
+    val toggleDebugComponent = CustomItemComponent("toggleDebug", Material.BONE)
+    customItemRegistry += { toggleDebugComponent.create("Broodkeeper's Sight") }
     toggleDebugComponent.onGestureUse { player, _ ->
         AppState.renderDebugVisuals = !AppState.renderDebugVisuals
 
@@ -114,8 +112,8 @@ fun setupItems() {
     }
 
 
-    val switchRendererComponent = CustomItemComponent("switchRenderer")
-    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Spectral Form").attach(switchRendererComponent) }
+    val switchRendererComponent = CustomItemComponent("switchRenderer", Material.LIGHT_BLUE_DYE)
+    customItemRegistry += { switchRendererComponent.create("Spectral Form") }
     switchRendererComponent.onGestureUse { player, _ ->
         val renderer = AppState.findNearestSpider(player)?.query<SpiderRenderer>() ?: return@onGestureUse
         renderer.useParticles = !renderer.useParticles
@@ -127,16 +125,16 @@ fun setupItems() {
         }
     }
 
-    val toggleCloakComponent = CustomItemComponent("toggleCloak")
-    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Shroud Charm").attach(toggleCloakComponent) }
+    val toggleCloakComponent = CustomItemComponent("toggleCloak", Material.GREEN_DYE)
+    customItemRegistry += { toggleCloakComponent.create("Shroud Charm") }
     toggleCloakComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val cloak = entity.query<Cloak>() ?: return@onGestureUse
         cloak.toggleCloak(AppState.ecs, entity)
     }
 
-    val switchGaitComponent = CustomItemComponent("switchGait")
-    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Hunting Instinct").attach(switchGaitComponent) }
+    val switchGaitComponent = CustomItemComponent("switchGait", Material.BREEZE_ROD)
+    customItemRegistry += { switchGaitComponent.create("Hunting Instinct") }
     switchGaitComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -145,8 +143,8 @@ fun setupItems() {
         player.sendActionBar(Component.text(if (!options.gallop) "Walk mode" else "Gallop mode"))
     }
 
-    val toggleGripComponent = CustomItemComponent("toggleGrip")
-    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Clinging Charm").attach(toggleGripComponent) }
+    val toggleGripComponent = CustomItemComponent("toggleGrip", Material.SLIME_BALL)
+    customItemRegistry += { toggleGripComponent.create("Clinging Charm") }
     toggleGripComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -155,11 +153,11 @@ fun setupItems() {
         player.sendActionBar(Component.text(if (!options.climbing) "Wall climbing off" else "Wall climbing on"))
     }
 
-    val laserPointerComponent = CustomItemComponent("laserPointer")
-    customItemRegistry += { createNamedItem(Material.ARROW, "Brood Guide — aim to guide").attach(laserPointerComponent) }
+    val laserPointerComponent = CustomItemComponent("laserPointer", Material.REDSTONE_TORCH)
+    customItemRegistry += { laserPointerComponent.create("Brood Guide — aim to guide") }
 
-    val comeHereComponent = CustomItemComponent("comeHere")
-    customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Broodcall Whistle — hold to recall").attach(comeHereComponent) }
+    val comeHereComponent = CustomItemComponent("comeHere", Material.CARROT_ON_A_STICK)
+    customItemRegistry += { comeHereComponent.create("Broodcall Whistle — hold to recall") }
 
     class LaserPointExpire(val owner: Player) : ECSComponent {
         var expired = false
