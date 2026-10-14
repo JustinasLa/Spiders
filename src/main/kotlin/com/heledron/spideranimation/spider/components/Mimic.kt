@@ -356,6 +356,37 @@ object MimicChests {
         return true
     }
 
+    private const val SCREECH_RANGE = 80.0
+    private const val SECOND_SHRIEK_TICKS = 6L
+    private val SCREECH = listOf(
+        Sound.ENTITY_FOX_SCREECH to .7f,
+        Sound.ENTITY_GHAST_SCREAM to 1.6f,
+        Sound.ENTITY_ENDERMAN_SCREAM to .8f,
+        Sound.ENTITY_PHANTOM_DEATH to .6f,
+    )
+
+    /**
+     * A sound can't play louder than volume 1 (higher only widens its range), so the screech is
+     * layered, and each player within range also hears it at full volume from just beside them,
+     * towards the mimic, so it stays loud far off and still comes from the right direction.
+     */
+    private fun screech(world: World, centre: Vector, pitch: Float = 1f) {
+        val location = centre.toLocation(world)
+        for ((sound, soundPitch) in SCREECH) world.playSound(location, sound, SoundCategory.HOSTILE, 5f, soundPitch * pitch)
+        for (player in world.players) {
+            val ear = player.eyeLocation.toVector()
+            val toMimic = centre.clone().subtract(ear)
+            val distance = toMimic.length()
+            if (distance > SCREECH_RANGE) continue
+            val source = if (distance < 2) centre else ear.add(toMimic.multiply(2 / distance))
+            repeat(2) {
+                for ((sound, soundPitch) in SCREECH) {
+                    player.playSound(source.toLocation(world), sound, SoundCategory.HOSTILE, 1f, soundPitch * pitch)
+                }
+            }
+        }
+    }
+
     /** Free floor next to [position], nearest first: the cell it stands over, then its neighbours. */
     fun restCellNear(world: World, position: Vector): Block? {
         val ground = world.raycastGround(position, DOWN_VECTOR, 4.0)?.hitPosition ?: return null
@@ -388,12 +419,10 @@ object MimicChests {
         AppState.spawnMimic(world, floor, facing.direction, waker?.uniqueId) ?: return false
 
         val centre = floor.clone().add(Vector(0.0, MimicShape.RESTING_HEIGHT, 0.0))
-        // A loud screech; volumes above 1 carry 16 blocks further per unit.
-        val location = centre.toLocation(world)
-        world.playSound(location, Sound.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 1.5f, .6f)
-        world.playSound(location, Sound.ENTITY_FOX_SCREECH, SoundCategory.HOSTILE, 4f, .7f)
-        world.playSound(location, Sound.ENTITY_GHAST_SCREAM, SoundCategory.HOSTILE, 3f, 1.6f)
-        world.playSound(location, Sound.ENTITY_ENDERMAN_SCREAM, SoundCategory.HOSTILE, 2f, .8f)
+        world.playSound(centre.toLocation(world), Sound.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 1.5f, .6f)
+        screech(world, centre)
+        // a second, higher shriek on its heels
+        Bukkit.getScheduler().runTaskLater(currentPlugin, Runnable { screech(world, centre, pitch = 1.15f) }, SECOND_SHRIEK_TICKS)
         world.spawnParticle(Particle.BLOCK, centre.toLocation(world), 24, .3, .3, .3, 0.0, blockData)
 
         // Anything stuffed inside is spat out of its mouth.

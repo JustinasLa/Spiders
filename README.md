@@ -89,7 +89,8 @@ matching, which looks washed out with bright gamma, is still available with
 **Mimic.** `/spider mimic place` (or `/spider spawn mimic`) puts a dormant mimic
 on the floor you aim at, facing you: a real chest block, so it looks exactly like
 one and stays put through restarts. Anyone who right-clicks or hits it wakes it.
-The chest bursts open with a loud screech that carries about 60 blocks, rises on
+The chest bursts open with a double, full-volume screech that every player within 80
+blocks hears from its direction, rises on
 four long legs, turns its back on whoever woke it and gallops away at 7 blocks/s,
 lid flapping. It keeps running directly away from that player (around obstacles
 if it gets stuck) until it's 250 blocks from them, then sits back down as a chest
@@ -129,7 +130,7 @@ them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
 Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.14.jar`** shaded
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.15.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
