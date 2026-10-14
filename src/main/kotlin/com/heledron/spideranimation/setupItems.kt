@@ -45,7 +45,7 @@ import java.util.UUID
 
 fun setupItems() {
     val spiderComponent = CustomItemComponent("spider")
-    customItemRegistry += { createNamedItem(Material.SPIDER_EYE, "Cinderweaver Summoning Seal").attach(spiderComponent) }
+    customItemRegistry += { createNamedItem(Material.FERMENTED_SPIDER_EYE, "Cinderweaver Summoning Seal").attach(spiderComponent) }
     spiderComponent.onGestureUse { player, item ->
         val storedUuid = item.spiderUUID
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
@@ -83,7 +83,7 @@ fun setupItems() {
 
 
     val disableLegComponent = CustomItemComponent("disableLeg")
-    customItemRegistry += { createNamedItem(Material.STRING, "Limb Binding Charm").attach(disableLegComponent) }
+    customItemRegistry += { createNamedItem(Material.RABBIT_HIDE, "Limb Binding Charm").attach(disableLegComponent) }
     onTick {
         val players = disableLegComponent.getPlayersHoldingItem().toSet()
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
