@@ -62,7 +62,7 @@ class Locomotion : ECSComponent {
 fun setupLocomotion(app: ECS) {
     app.onPostTick {
         for ((entity, spider, options, locomotion) in app.query<ECSEntity, SpiderBody, SpiderOptions, Locomotion>()) {
-            val hitDetector = entity.query<ProjectileHitDetector>()
+            val hitDetector = entity.query<HitDetector>()
 
             val targetVelocity = Vector(0.0, 0.0, 0.0)
             locomotion.walkVelocity?.let { targetVelocity.add(it) }
@@ -114,7 +114,7 @@ private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
     rotationalVelocity.moveTowards(desiredOmega, maxAcceleration)
 }
 
-private fun SpiderBody.walkAt(targetVelocity: Vector, hitDetector: ProjectileHitDetector?, gait: Gait) {
+private fun SpiderBody.walkAt(targetVelocity: Vector, hitDetector: HitDetector?, gait: Gait) {
     val acceleration = gait.moveAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
 
     // preserve up motion, steer only within the perpendicular plane

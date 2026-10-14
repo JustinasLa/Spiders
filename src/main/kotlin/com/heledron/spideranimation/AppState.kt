@@ -7,7 +7,7 @@ import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.Mountable
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.SoundsAndParticles
-import com.heledron.spideranimation.spider.components.ProjectileHitDetector
+import com.heledron.spideranimation.spider.components.HitDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.presets.CinderweaverSize
 import com.heledron.spideranimation.utilities.ecs.ECS
@@ -50,7 +50,7 @@ object AppState {
             SpiderBody.create(world, bodyPosition, orientation),
             options,
             Locomotion(),
-            ProjectileHitDetector(),
+            HitDetector(),
             Cloak(),
             SoundsAndParticles(),
             Mountable(),

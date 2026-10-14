@@ -15,6 +15,6 @@ fun setupSpider(app: ECS) {
     setupMountable(app)
     setupPointDetector(app)
     setupSoundAndParticles(app)
-    setupProjectileHitDetector(app)
+    setupHitDetector(app)
     setupRenderer(app)
 }

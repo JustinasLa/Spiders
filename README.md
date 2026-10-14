@@ -14,6 +14,7 @@ The permission is checked on commands, use of copied/borrowed tools, held-item
 steering, saddle interactions and actual mounting. Riders lose control and
 dismount when permission is removed. No permission-manager changes are needed
 for operators; granting access to other staff is a separate server policy choice.
+Hitting a spider (see "Getting hit") is open to everyone.
 
 Quick start, as authorised staff:
 
@@ -67,11 +68,16 @@ along its wall or ceiling and drops onto a player below. The leap can be tuned
 with `/spider options spider_options.pounce.leapRange|leapBoost|leapLift|giveUpTicks`.
 Pounces are animation only: they do not damage anyone.
 
-**Arrows and tridents.** Arrows, spectral arrows and tridents strike the
-spider's actual body and legs and bounce off. A staff member's hit pushes the
-spider (a trident more than an arrow) and breaks its shroud; other players'
-projectiles only glance off. Projectiles pass through the hidden saddle seat.
-A rider's own shots pass through their mount.
+**Getting hit.** Anyone can hit a spider, staff or not, and so can mobs and
+dispensers. Arrows, spectral arrows and tridents strike its actual body and
+legs and bounce off; snowballs and eggs break on it; wind charges burst on it.
+Players can also hit it by swinging at it within their reach. Each hit pushes
+the spider, plays its hurt sound and breaks its shroud. From weakest to
+strongest: snowball or egg, arrow, sword or fist (scaled by attack charge),
+trident, wind charge. A barely drawn bow or a spammed swing only glances off.
+Projectiles pass through the hidden saddle seat, and hitting the seat counts as
+hitting the spider. A rider's own shots and swings pass through their mount.
+Hits do no damage: spiders have no health.
 
 **Shroud Charm.** The charm or `/spider shroud on|off` shrouds the targeted spider. The shroud copies whatever lies behind each part of the
 spider as seen by the nearest player within 48 blocks (spectators excluded),
@@ -102,8 +108,8 @@ plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission, model, climbing, pounce, projectile and shroud tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.10.jar`** shaded
+Build and run the permission, model, climbing, pounce, hit and shroud tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.11.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
