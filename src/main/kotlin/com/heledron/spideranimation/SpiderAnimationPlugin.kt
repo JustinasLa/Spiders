@@ -5,11 +5,9 @@ import com.heledron.spideranimation.commands.setupCommands
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.setupSpider
-import com.heledron.spideranimation.inverse_kinematics.IKDemo
-import com.heledron.spideranimation.inverse_kinematics.setupIKDemo
 import com.heledron.spideranimation.laser.setupLaserPointer
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
-import com.heledron.spideranimation.utilities.events.onSpawnEntity
+import com.heledron.spideranimation.utilities.custom_items.setupStaffToolInventory
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.setupCoreUtils
 import com.heledron.spideranimation.utilities.shutdownCoreUtils
@@ -27,6 +25,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
     override fun onDisable() {
         logger.info("Disabling Spider Animation plugin")
         shutdownCoreUtils()
+        ecs.entities.clear()
     }
 
     override fun onEnable() {
@@ -36,8 +35,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         setupCommands(this)
         setupItems()
+        setupStaffToolInventory()
         setupSpider(ecs)
-        setupIKDemo(ecs)
         setupLaserPointer(ecs)
 
         ecs.start()
@@ -47,21 +46,10 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 entity.query<SpiderRenderer>()?.renderDebugVisuals = AppState.renderDebugVisuals
             }
 
-            ecs.query<IKDemo>().forEach { it.renderDebugVisuals = AppState.renderDebugVisuals }
-
             ecs.update()
             ecs.render()
         }
 
-        onSpawnEntity { entity ->
-            // Use this command to spawn an IK demo
-            // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.ik_demo"]}
-            if (!entity.scoreboardTags.contains("spider.ik_demo")) return@onSpawnEntity
-
-            ecs.query<ECSEntity, IKDemo>().forEach { (existing, _) -> existing.remove() }
-            ecs.spawn(IKDemo.create(entity.world, entity.location))
-
-            entity.remove()
-        }
+        logger.info("Cinderweavers ready. Staff permission: ${StaffAccess.PERMISSION}; limit: ${AppState.MAX_SPIDERS}.")
     }
 }

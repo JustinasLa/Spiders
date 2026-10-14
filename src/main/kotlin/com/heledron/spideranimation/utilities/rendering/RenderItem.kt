@@ -62,6 +62,7 @@ class RenderEntity <T : Entity> (
             update(entity)
         } else {
             RenderEntityTracker.put(handle, location.world!!.spawn(location, clazz) {
+                it.isPersistent = false
                 init(it)
                 update(it)
             })
@@ -73,7 +74,7 @@ object RenderEntityTracker {
     private val rendered = mutableMapOf<Any, Entity>()
     private val used = mutableSetOf<Any>()
 
-    private val component = CustomEntityComponent.fromString("RenderEntity")
+    private val component = CustomEntityComponent.fromString("tfmc_spider_render")
 
     init {
         onTickEnd {

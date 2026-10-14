@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.spider.components
 
+import com.heledron.spideranimation.StaffAccess
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
@@ -19,8 +20,10 @@ import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Pig
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
-import org.bukkit.event.vehicle.VehicleEnterEvent
+import org.bukkit.event.entity.EntityMountEvent
+import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
@@ -32,48 +35,17 @@ class Mountable : ECSComponent {
 }
 
 fun setupMountable(app: ECS) {
-    onInteractEntity { player, entity, hand ->
-        for (mountable in app.query<Mountable>()) {
-            val currentPig = mountable.currentPig ?: continue
-            if (entity != currentPig) continue
-            if (hand != EquipmentSlot.HAND) continue
-
-            // if right click with saddle, add saddle (automatic)
-            if (player.inventory.itemInMainHand.type == Material.SADDLE && !currentPig.hasSaddle()) {
-                currentPig.world.playSound(currentPig.position, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
-            }
-
-            // if right click with empty hand, remove saddle
-            if (player.inventory.itemInMainHand.type.isAir && mountable.getRider() == null) {
-                if (player.isSneaking) {
-                    currentPig.setSaddle(false)
-                }
-            }
-        }
-    }
-
-    // when player mounts the pig, switch them to the marker entity
-    addEventListener(object : Listener {
-        @EventHandler
-        fun onMount(event: VehicleEnterEvent) {
-            for (mountable in app.query<Mountable>()) {
-                val currentPig = mountable.currentPig ?: continue
-                val currentMarker = mountable.currentMarker ?: continue
-
-                if (event.vehicle != currentPig) continue
-                val player = event.entered
-
-                event.isCancelled = true
-                currentMarker.addPassenger(player)
-            }
-        }
-    })
+    addEventListener(StaffMountListener(app))
 
     // Handle user input
     @Suppress("UnstableApiUsage")
     app.onTick {
         for ((mountable, _, options, entity) in app.query<Mountable, SpiderBody, SpiderOptions, ECSEntity>()) {
             val player = mountable.getRider() ?: continue
+            if (!StaffAccess.canUse(player)) {
+                player.leaveVehicle()
+                continue
+            }
             val locomotion = entity.query<Locomotion>() ?: continue
 
             val input = Vector()
@@ -129,6 +101,42 @@ fun setupMountable(app: ECS) {
                     mountable.currentMarker = it
                 }
             ).submit(spider to "mountable.marker")
+        }
+    }
+}
+
+/** Rechecks both interaction and actual mounting, including direct /ride attempts. */
+internal class StaffMountListener(private val app: ECS) : Listener {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onInteract(event: PlayerInteractEntityEvent) {
+        for (mountable in app.query<Mountable>()) {
+            if (event.rightClicked != mountable.currentPig && event.rightClicked != mountable.currentMarker) continue
+            if (!StaffAccess.require(event.player)) {
+                event.isCancelled = true
+                return
+            }
+            if (event.hand != EquipmentSlot.HAND) return
+            val pig = mountable.currentPig ?: return
+            if (event.player.isSneaking && event.player.inventory.itemInMainHand.type.isAir && mountable.getRider() == null) {
+                pig.setSaddle(false)
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onMount(event: EntityMountEvent) {
+        for (mountable in app.query<Mountable>()) {
+            if (event.mount != mountable.currentPig && event.mount != mountable.currentMarker) continue
+            val player = event.entity as? Player
+            if (player == null || !StaffAccess.require(player)) {
+                event.isCancelled = true
+                return
+            }
+            if (event.mount == mountable.currentPig) {
+                event.isCancelled = true
+                val marker = mountable.currentMarker ?: return
+                if (marker.passengers.isEmpty()) marker.addPassenger(player)
+            }
         }
     }
 }

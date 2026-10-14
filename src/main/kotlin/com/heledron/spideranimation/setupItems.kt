@@ -43,7 +43,7 @@ import java.util.UUID
 
 fun setupItems() {
     val spiderComponent = CustomItemComponent("spider")
-    customItemRegistry += { createNamedItem(Material.NETHERITE_INGOT, "Spider").attach(spiderComponent) }
+    customItemRegistry += { createNamedItem(Material.NETHERITE_INGOT, "Cinderweaver Summoning Seal").attach(spiderComponent) }
     spiderComponent.onGestureUse { player, item ->
         val storedUuid = item.spiderUUID
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
@@ -70,7 +70,7 @@ fun setupItems() {
 				45f.toRadians(),
 			)
 
-			val entity = AppState.createSpider(player.world, hitPosition, options, orientation)
+			val entity = AppState.createSpider(player, player.world, hitPosition, options, orientation) ?: return@onGestureUse
 			val spider = entity.query<SpiderBody>() ?: return@onGestureUse
 			item.spiderUUID = spider.uuid
 
@@ -81,7 +81,7 @@ fun setupItems() {
 
 
     val disableLegComponent = CustomItemComponent("disableLeg")
-    customItemRegistry += { createNamedItem(Material.SHEARS, "Toggle Leg").attach(disableLegComponent) }
+    customItemRegistry += { createNamedItem(Material.SHEARS, "Artificer's Joint Key").attach(disableLegComponent) }
     onTick {
         val players = disableLegComponent.getPlayersHoldingItem().toSet()
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
@@ -102,7 +102,7 @@ fun setupItems() {
     }
 
     val toggleDebugComponent = CustomItemComponent("toggleDebug")
-    customItemRegistry += { createNamedItem(Material.BLAZE_ROD, "Toggle Debug Graphics").attach(toggleDebugComponent) }
+    customItemRegistry += { createNamedItem(Material.BLAZE_ROD, "Artificer's Inspection Rod").attach(toggleDebugComponent) }
     toggleDebugComponent.onGestureUse { player, _ ->
         AppState.renderDebugVisuals = !AppState.renderDebugVisuals
 
@@ -112,7 +112,7 @@ fun setupItems() {
 
 
     val switchRendererComponent = CustomItemComponent("switchRenderer")
-    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Switch Renderer").attach(switchRendererComponent) }
+    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Aether Projection Lens").attach(switchRendererComponent) }
     switchRendererComponent.onGestureUse { player, _ ->
         val renderer = AppState.findNearestSpider(player)?.query<SpiderRenderer>() ?: return@onGestureUse
         renderer.useParticles = !renderer.useParticles
@@ -125,7 +125,7 @@ fun setupItems() {
     }
 
     val toggleCloakComponent = CustomItemComponent("toggleCloak")
-    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Toggle Cloak").attach(toggleCloakComponent) }
+    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Veilweave Regulator").attach(toggleCloakComponent) }
     toggleCloakComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val cloak = entity.query<Cloak>() ?: return@onGestureUse
@@ -133,7 +133,7 @@ fun setupItems() {
     }
 
     val switchGaitComponent = CustomItemComponent("switchGait")
-    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Switch Gait").attach(switchGaitComponent) }
+    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Clockwork Governor").attach(switchGaitComponent) }
     switchGaitComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -143,7 +143,7 @@ fun setupItems() {
     }
 
     val toggleGripComponent = CustomItemComponent("toggleGrip")
-    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Toggle Grip").attach(toggleGripComponent) }
+    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Wallgrip Clutch").attach(toggleGripComponent) }
     toggleGripComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -154,10 +154,10 @@ fun setupItems() {
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")
-    customItemRegistry += { createNamedItem(Material.ARROW, "Laser Pointer").attach(laserPointerComponent) }
+    customItemRegistry += { createNamedItem(Material.ARROW, "Ember Beacon — aim to guide").attach(laserPointerComponent) }
 
     val comeHereComponent = CustomItemComponent("comeHere")
-    customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Come Here").attach(comeHereComponent) }
+    customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Broodcall Whistle — hold to recall").attach(comeHereComponent) }
 
     class LaserPointExpire(val owner: Player) : ECSComponent {
         var expired = false

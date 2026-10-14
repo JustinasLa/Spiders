@@ -1,5 +1,7 @@
 package com.heledron.spideranimation.utilities.custom_items
 
+import com.heledron.spideranimation.StaffAccess
+import com.heledron.spideranimation.utilities.events.addEventListener
 import com.heledron.spideranimation.utilities.events.onGestureUseItem
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
@@ -10,16 +12,46 @@ import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.inventory.Inventory
+import org.bukkit.inventory.InventoryHolder
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 
 val customItemRegistry = mutableListOf<() -> ItemStack>()
 
+private class StaffToolInventory : InventoryHolder {
+    private val contents = createInventory(this, InventoryType.CHEST, Component.text("Cinderweaver • Staff Tools"))
+    override fun getInventory(): Inventory = contents
+}
+
 fun openCustomItemInventory(player: Player) {
-    val inventory = createInventory(null, InventoryType.CHEST, Component.text("Items"))
+    if (!StaffAccess.require(player)) return
+    val inventory = StaffToolInventory().inventory
     customItemRegistry.forEach { inventory.addItem(it()) }
     player.openInventory(inventory)
+}
+
+fun setupStaffToolInventory() {
+    addEventListener(object : Listener {
+        @EventHandler
+        fun onClick(event: InventoryClickEvent) {
+            if (event.view.topInventory.holder !is StaffToolInventory) return
+            if (StaffAccess.canUse(event.whoClicked)) return
+            event.isCancelled = true
+        }
+
+        @EventHandler
+        fun onDrag(event: InventoryDragEvent) {
+            if (event.view.topInventory.holder is StaffToolInventory && !StaffAccess.canUse(event.whoClicked)) {
+                event.isCancelled = true
+            }
+        }
+    })
 }
 
 class CustomItemComponent(val id: String) {
@@ -34,6 +66,7 @@ class CustomItemComponent(val id: String) {
     }
 
     fun getPlayersHoldingItem() = Bukkit.getOnlinePlayers().filter { player ->
+        if (!StaffAccess.canUse(player)) return@filter false
         val itemInMainHand = player.inventory.itemInMainHand
         val itemInOffHand = player.inventory.itemInOffHand
         isAttached(itemInMainHand) || isAttached(itemInOffHand)
@@ -41,20 +74,21 @@ class CustomItemComponent(val id: String) {
 
     fun onGestureUse(action: (Player, ItemStack) -> Unit) {
         onGestureUseItem { player, item ->
-            if (isAttached(item)) action(player, item)
+            if (isAttached(item) && StaffAccess.require(player)) action(player, item)
         }
     }
 
     fun onInteractEntity(action: (Player, Entity, ItemStack) -> Unit) {
         com.heledron.spideranimation.utilities.events.onInteractEntity(fun(player, entity, hand) {
             val item = player.inventory.getItem(hand)
-            if (isAttached(item)) action(player, entity, item)
+            if (isAttached(item) && StaffAccess.require(player)) action(player, entity, item)
         })
     }
 
     fun onHeldTick(action: (Player, ItemStack) -> Unit) {
         onTick {
             for (player in Bukkit.getServer().onlinePlayers) {
+                if (!StaffAccess.canUse(player)) continue
                 val itemInMainHand = player.inventory.itemInMainHand
                 val itemInOffHand = player.inventory.itemInOffHand
                 if (isAttached(itemInMainHand)) action(player, itemInMainHand)

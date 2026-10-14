@@ -7,6 +7,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEv
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.overloads.playSound
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -64,8 +65,18 @@ fun setupSoundAndParticles(app: ECS) {
     }
 
     app.onTick {
-        for ((spider, sounds) in app.query<SpiderBody, SoundsAndParticles>()) {
+        for ((spider, sounds, options) in app.query<SpiderBody, SoundsAndParticles, SpiderOptions>()) {
             sounds.timeSinceLastSound++
+
+            // Small puffs from the two boiler stacks, using local model coordinates on walls too.
+            if (sounds.timeSinceLastSound % 12 == 0) {
+                val scale = options.bodyPlan.scale
+                for (x in listOf(-.205, .205)) {
+                    val exhaust = Vector(x * scale, .75 * scale, -.815 * scale)
+                        .rotate(spider.orientation).add(spider.position).toLocation(spider.world)
+                    spider.world.spawnParticle(Particle.SMOKE, exhaust, 1, .02 * scale, .02 * scale, .02 * scale, .01)
+                }
+            }
 
             for (leg in spider.legs) {
                 spawnLegParticles(sounds, spider.world, leg)

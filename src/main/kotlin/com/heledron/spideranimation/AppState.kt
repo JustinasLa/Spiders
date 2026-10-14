@@ -15,26 +15,38 @@ import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.Location
 import org.bukkit.World
+import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 
 object AppState {
+    const val MAX_SPIDERS = 6
     var miscOptions = MiscellaneousOptions()
     var renderDebugVisuals = false
 
     val ecs = ECS()
 
     fun createSpider(
+        actor: CommandSender,
         world: World,
         position: Vector,
         options: SpiderOptions,
         orientation: Quaternionf = Quaternionf(),
-    ): ECSEntity {
+    ): ECSEntity? {
+        if (!StaffAccess.require(actor)) return null
+        if (!options.bodyPlan.scale.isFinite() || options.bodyPlan.scale !in 0.25..2.5) {
+            actor.sendPlainMessage("Cinderweaver scale must be between 0.25 and 2.5.")
+            return null
+        }
+        if (spiderCount() >= MAX_SPIDERS) {
+            actor.sendPlainMessage("The test limit is $MAX_SPIDERS Cinderweavers. Remove one first.")
+            return null
+        }
         val up = UP_VECTOR.clone().rotate(orientation)
-        position.add(up.multiply(options.walkGait.stationary.bodyHeight))
+        val bodyPosition = position.clone().add(up.multiply(options.walkGait.stationary.bodyHeight))
         return ecs.spawn(
-            SpiderBody.create(world, position, orientation),
+            SpiderBody.create(world, bodyPosition, orientation),
             options,
             Locomotion(),
             TridentHitDetector(),
@@ -46,8 +58,10 @@ object AppState {
         )
     }
 
+    fun spiderCount(): Int = ecs.query<ECSEntity, SpiderBody>().count { !it.first.scheduledForRemoval }
+
     fun findSpiderByUUID(uuid: java.util.UUID): ECSEntity? {
-        return ecs.query<ECSEntity, SpiderBody>().find { it.second.uuid == uuid }?.first
+        return ecs.query<ECSEntity, SpiderBody>().find { !it.first.scheduledForRemoval && it.second.uuid == uuid }?.first
     }
 
     fun findNearestSpider(player: Player): ECSEntity? {
@@ -56,7 +70,7 @@ object AppState {
 
     fun findNearestSpider(location: Location): ECSEntity? {
         return ecs.query<ECSEntity, SpiderBody>()
-            .filter { it.second.world == location.world }
+            .filter { !it.first.scheduledForRemoval && it.second.world == location.world }
             .minByOrNull { it.second.position.distanceSquared(location.toVector()) }
             ?.first
     }
