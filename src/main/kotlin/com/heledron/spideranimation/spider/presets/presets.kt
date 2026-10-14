@@ -89,14 +89,17 @@ fun hexapod(segmentCount: Int, segmentLength: Double): SpiderOptions {
     return options
 }
 
-fun octopod(segmentCount: Int, segmentLength: Double): SpiderOptions {
-    val options = SpiderOptions()
-    options.bodyPlan.addLegPair(Vector(.0,.0,  .1), Vector(1.0, .0,  1.6), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION)
-    options.bodyPlan.addLegPair(Vector(.0,.0,  .0), Vector(1.3, .0,  0.4), equalLength(segmentCount, 1.0 * segmentLength), PED_HIP_ROTATION)
-    options.bodyPlan.addLegPair(Vector(.0,.0, -.1), Vector(1.3, .0, -0.9), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION)
-    options.bodyPlan.addLegPair(Vector(.0,.0, -.2), Vector(1.1, .0, -2.5), equalLength(segmentCount, 1.6 * segmentLength), PED_HIP_ROTATION)
-    applyLineLegModel(options.bodyPlan, Material.NETHERITE_BLOCK.createBlockData())
-    return options
+fun octopod(segmentCount: Int, segmentLength: Double): SpiderOptions = SpiderOptions().apply {
+    bodyPlan = octopodBodyPlan(segmentCount, segmentLength)
+}
+
+// The shape can also be built and posed without a server's sound registry.
+internal fun octopodBodyPlan(segmentCount: Int, segmentLength: Double): BodyPlan = BodyPlan().apply {
+    addLegPair(Vector(.0,.0,  .1), Vector(1.0, .0,  1.6), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION)
+    addLegPair(Vector(.0,.0,  .0), Vector(1.3, .0,  0.4), equalLength(segmentCount, 1.0 * segmentLength), PED_HIP_ROTATION)
+    addLegPair(Vector(.0,.0, -.1), Vector(1.3, .0, -0.9), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION)
+    addLegPair(Vector(.0,.0, -.2), Vector(1.1, .0, -2.5), equalLength(segmentCount, 1.6 * segmentLength), PED_HIP_ROTATION)
+    applyLineLegModel(this, Material.NETHERITE_BLOCK.createBlockData())
 }
 
 

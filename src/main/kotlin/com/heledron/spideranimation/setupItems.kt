@@ -9,6 +9,8 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.laser.LaserPoint
 import com.heledron.spideranimation.spider.configuration.OrientationMode
 import com.heledron.spideranimation.spider.presets.defaultPreset
+import com.heledron.spideranimation.spider.presets.upgradeClockworkAppearance
+import com.heledron.spideranimation.spider.presets.useOrganicSounds
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
 import com.heledron.spideranimation.utilities.custom_items.createNamedItem
@@ -43,12 +45,12 @@ import java.util.UUID
 
 fun setupItems() {
     val spiderComponent = CustomItemComponent("spider")
-    customItemRegistry += { createNamedItem(Material.NETHERITE_INGOT, "Cinderweaver Summoning Seal").attach(spiderComponent) }
+    customItemRegistry += { createNamedItem(Material.SPIDER_EYE, "Cinderweaver Summoning Seal").attach(spiderComponent) }
     spiderComponent.onGestureUse { player, item ->
         val storedUuid = item.spiderUUID
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
 		if (existing != null) {
-			player.world.playSound(player.position, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
+			player.world.playSound(player.position, Sound.BLOCK_WOOL_BREAK, .4f, .7f)
 
 			item.spiderOptions = existing.query<SpiderOptions>()
 
@@ -60,7 +62,7 @@ fun setupItems() {
 			val hitPosition = result.hitPosition
 			val up = result.hitBlockFace?.direction ?: UP_VECTOR
 
-			player.world.playSound(hitPosition, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
+			player.world.playSound(hitPosition, Sound.ENTITY_SPIDER_AMBIENT, .4f, .7f)
 
 			val options = item.spiderOptions ?: defaultPreset()
 			val yawDirection = FORWARD_VECTOR.rotate(Quaternionf().rotationY(player.yawRadians()))
@@ -81,7 +83,7 @@ fun setupItems() {
 
 
     val disableLegComponent = CustomItemComponent("disableLeg")
-    customItemRegistry += { createNamedItem(Material.SHEARS, "Artificer's Joint Key").attach(disableLegComponent) }
+    customItemRegistry += { createNamedItem(Material.STRING, "Limb Binding Charm").attach(disableLegComponent) }
     onTick {
         val players = disableLegComponent.getPlayersHoldingItem().toSet()
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
@@ -92,27 +94,27 @@ fun setupItems() {
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
             val selectedLeg = pointDetector.selectedLeg[player]
             if (selectedLeg == null) {
-                player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+                player.world.playSound(player.position, Sound.BLOCK_SCULK_HIT, 1.0f, 2.0f)
                 return@onGestureUse
             }
 
             selectedLeg.isDisabled = !selectedLeg.isDisabled
-            player.world.playSound(player.position, Sound.BLOCK_LANTERN_PLACE, 1.0f, 1.0f)
+            player.world.playSound(player.position, Sound.BLOCK_WOOL_HIT, 1.0f, 1.0f)
         }
     }
 
     val toggleDebugComponent = CustomItemComponent("toggleDebug")
-    customItemRegistry += { createNamedItem(Material.BLAZE_ROD, "Artificer's Inspection Rod").attach(toggleDebugComponent) }
+    customItemRegistry += { createNamedItem(Material.BONE, "Broodkeeper's Sight").attach(toggleDebugComponent) }
     toggleDebugComponent.onGestureUse { player, _ ->
         AppState.renderDebugVisuals = !AppState.renderDebugVisuals
 
         val pitch = if (AppState.renderDebugVisuals) 2.0f else 1.5f
-        player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, pitch)
+        player.world.playSound(player.position, Sound.BLOCK_SCULK_HIT, 1.0f, pitch)
     }
 
 
     val switchRendererComponent = CustomItemComponent("switchRenderer")
-    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Aether Projection Lens").attach(switchRendererComponent) }
+    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Spectral Form").attach(switchRendererComponent) }
     switchRendererComponent.onGestureUse { player, _ ->
         val renderer = AppState.findNearestSpider(player)?.query<SpiderRenderer>() ?: return@onGestureUse
         renderer.useParticles = !renderer.useParticles
@@ -120,12 +122,12 @@ fun setupItems() {
         if (renderer.useParticles) {
             player.world.playSound(player.position, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
         } else {
-            player.world.playSound(player.position, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
+            player.world.playSound(player.position, Sound.ENTITY_SPIDER_AMBIENT, 1.0f, 1.0f)
         }
     }
 
     val toggleCloakComponent = CustomItemComponent("toggleCloak")
-    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Veilweave Regulator").attach(toggleCloakComponent) }
+    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Shroud Charm").attach(toggleCloakComponent) }
     toggleCloakComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val cloak = entity.query<Cloak>() ?: return@onGestureUse
@@ -133,17 +135,17 @@ fun setupItems() {
     }
 
     val switchGaitComponent = CustomItemComponent("switchGait")
-    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Clockwork Governor").attach(switchGaitComponent) }
+    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Hunting Instinct").attach(switchGaitComponent) }
     switchGaitComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
         options.gallop = !options.gallop
-        player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+        player.world.playSound(player.position, Sound.BLOCK_SCULK_HIT, 1.0f, 2.0f)
         player.sendActionBar(Component.text(if (!options.gallop) "Walk mode" else "Gallop mode"))
     }
 
     val toggleGripComponent = CustomItemComponent("toggleGrip")
-    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Wallgrip Clutch").attach(toggleGripComponent) }
+    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Clinging Charm").attach(toggleGripComponent) }
     toggleGripComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -154,7 +156,7 @@ fun setupItems() {
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")
-    customItemRegistry += { createNamedItem(Material.ARROW, "Ember Beacon — aim to guide").attach(laserPointerComponent) }
+    customItemRegistry += { createNamedItem(Material.ARROW, "Brood Guide — aim to guide").attach(laserPointerComponent) }
 
     val comeHereComponent = CustomItemComponent("comeHere")
     customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Broodcall Whistle — hold to recall").attach(comeHereComponent) }
@@ -249,7 +251,9 @@ private var ItemStack.spiderOptions
         val json = itemMeta?.persistentDataContainer?.get(SPIDER_OPTIONS_KEY, PersistentDataType.STRING) ?: return null
 
         return try {
-            Serializer.deserialize<SpiderOptions>(json)
+            Serializer.deserialize<SpiderOptions>(json).also { options ->
+                if (upgradeClockworkAppearance(options.bodyPlan)) options.useOrganicSounds()
+            }
         } catch (e: Exception) {
             currentPlugin.logger.warning("Ignoring unreadable stored spider options: $e")
             null

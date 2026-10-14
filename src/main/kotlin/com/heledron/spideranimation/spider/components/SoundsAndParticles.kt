@@ -7,7 +7,6 @@ import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEv
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
-import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.overloads.playSound
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -28,21 +27,19 @@ class SoundsAndParticles : ECSComponent {
 
 fun setupSoundAndParticles(app: ECS) {
     app.onEvent<SpiderBodyHitGroundEvent> { event ->
-        event.spider.world.playSound(event.spider.position, Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
+        event.spider.world.playSound(event.spider.position, Sound.ENTITY_SPIDER_STEP, .7f, .6f)
     }
 
     app.onEvent<TridentHitEvent> { event ->
-        event.spider.world.playSound(event.spider.position, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
+        event.spider.world.playSound(event.spider.position, Sound.ENTITY_SPIDER_HURT, .5f, .8f)
     }
 
     app.onEvent<CloakToggleEvent> { event ->
-        event.spider.world.playSound(event.spider.position, Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
+        event.spider.world.playSound(event.spider.position, Sound.BLOCK_SCULK_PLACE, .5f, .7f)
     }
 
     app.onEvent<CloakDamageEvent> { event ->
-        event.spider.world.playSound(event.spider.position, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
-        event.spider.world.playSound(event.spider.position, Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
-        event.spider.world.playSound(event.spider.position, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
+        event.spider.world.playSound(event.spider.position, Sound.BLOCK_SCULK_SHRIEKER_BREAK, .4f, .8f)
     }
 
     app.onEvent<LegStepEvent> { event ->
@@ -65,18 +62,8 @@ fun setupSoundAndParticles(app: ECS) {
     }
 
     app.onTick {
-        for ((spider, sounds, options) in app.query<SpiderBody, SoundsAndParticles, SpiderOptions>()) {
+        for ((spider, sounds) in app.query<SpiderBody, SoundsAndParticles>()) {
             sounds.timeSinceLastSound++
-
-            // Small puffs from the two boiler stacks, using local model coordinates on walls too.
-            if (sounds.timeSinceLastSound % 12 == 0) {
-                val scale = options.bodyPlan.scale
-                for (x in listOf(-.205, .205)) {
-                    val exhaust = Vector(x * scale, .75 * scale, -.815 * scale)
-                        .rotate(spider.orientation).add(spider.position).toLocation(spider.world)
-                    spider.world.spawnParticle(Particle.SMOKE, exhaust, 1, .02 * scale, .02 * scale, .02 * scale, .01)
-                }
-            }
 
             for (leg in spider.legs) {
                 spawnLegParticles(sounds, spider.world, leg)
