@@ -44,8 +44,15 @@ server or check how the spiders look and move on a client.
 
 ## License
 
-This fork uses the upstream project's code under its published terms: the
-plugin and source code may be used for commercial and non-commercial purposes;
-attribution is appreciated but not required; do not resell it without
-substantial changes. See [LICENSE](LICENSE). No separate licence has been
-chosen for the TFMC changes yet.
+Copyright (c) 2026 Justinas Launikonis.
+Copyright (c) 2026 TF-Minecraft contributors.
+
+TF-Minecraft-authored material in this repository is licensed under the
+[Artistic License 2.0](LICENSE).
+
+Code from the upstream [minecraft-spider](https://github.com/TheCymaera/minecraft-spider)
+project by TheCymaera remains under its published terms: the plugin and source
+code may be used for commercial and non-commercial purposes; attribution is
+appreciated but not required; do not resell it without substantial changes.
+
+Third-party dependencies retain their own licenses.
