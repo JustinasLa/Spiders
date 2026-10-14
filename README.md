@@ -108,12 +108,14 @@ server stops drops back into a chest where it stands.
 Commands that act on one spider use the spider linked to the Summoning Seal in
 your hand, otherwise the nearest spider in your world.
 
-Take controls from `/spider tools`. Right-click the Summoning Seal to create or
+Take controls from `/spider tools`: a menu screen listing every tool with what it does and
+how to use it. Click a tool's button to receive a fresh one; the menu stays open, and each
+tool carries the same instructions in its lore. Right-click the Summoning Seal to create or
 recall its linked spider. Hold the Brood Guide (a redstone torch) and aim at terrain
 to guide the spiders; no marker is drawn where it points (`/spider options
 global.showLaser set true` shows one). Hold the Broodcall Whistle to call them towards you.
 Every `/spider` command and every tool is for staff only. A tool works only if it is
-the exact item `/spider tools` handed out: its tag *and* item type must match, so an
+the exact item the `/spider tools` menu handed out: its tag *and* item type must match, so an
 ordinary green dye, torch or carrot on a stick does nothing. Tools never do their
 vanilla job either: the guide can't be placed, charms don't dye signs or sheep, and the
 whistle doesn't steer pigs. Tools taken before this change (the arrow Brood Guide) no
@@ -137,7 +139,7 @@ them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
 Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.16.jar`** shaded
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.17.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.

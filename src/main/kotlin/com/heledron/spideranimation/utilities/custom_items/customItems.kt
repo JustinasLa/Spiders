@@ -8,7 +8,6 @@ import com.heledron.spideranimation.utilities.namespacedID
 import io.papermc.paper.datacomponent.DataComponentTypes
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
-import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -21,29 +20,10 @@ import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemConsumeEvent
 import org.bukkit.event.Listener
-import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.event.inventory.InventoryDragEvent
-import org.bukkit.inventory.Inventory
-import org.bukkit.inventory.InventoryHolder
-import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 
-val customItemRegistry = mutableListOf<() -> ItemStack>()
-
-private class StaffToolInventory : InventoryHolder {
-    private val contents = createInventory(this, InventoryType.CHEST, Component.text("Cinderweaver • Staff Tools"))
-    override fun getInventory(): Inventory = contents
-}
-
-fun openCustomItemInventory(player: Player) {
-    if (!StaffAccess.require(player)) return
-    val inventory = StaffToolInventory().inventory
-    customItemRegistry.forEach { inventory.addItem(it()) }
-    player.openInventory(inventory)
-}
-
-fun setupStaffToolInventory() {
+fun setupStaffTools() {
     // A tool is only ever a tool: no placing the Brood Guide's torch, dyeing signs or sheep with
     // a charm, steering pigs with the whistle, feeding animals or using it on any block or entity.
     addEventListener(object : Listener {
@@ -67,22 +47,6 @@ fun setupStaffToolInventory() {
         @EventHandler(priority = EventPriority.LOWEST)
         fun onConsume(event: PlayerItemConsumeEvent) {
             if (isStaffTool(event.item)) event.isCancelled = true
-        }
-    })
-
-    addEventListener(object : Listener {
-        @EventHandler
-        fun onClick(event: InventoryClickEvent) {
-            if (event.view.topInventory.holder !is StaffToolInventory) return
-            if (StaffAccess.canUse(event.whoClicked)) return
-            event.isCancelled = true
-        }
-
-        @EventHandler
-        fun onDrag(event: InventoryDragEvent) {
-            if (event.view.topInventory.holder is StaffToolInventory && !StaffAccess.canUse(event.whoClicked)) {
-                event.isCancelled = true
-            }
         }
     })
 }

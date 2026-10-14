@@ -7,7 +7,7 @@ import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.setupSpider
 import com.heledron.spideranimation.laser.setupLaserPointer
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
-import com.heledron.spideranimation.utilities.custom_items.setupStaffToolInventory
+import com.heledron.spideranimation.utilities.custom_items.setupStaffTools
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.setupCoreUtils
 import com.heledron.spideranimation.utilities.shutdownCoreUtils
@@ -35,7 +35,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         setupCommands(this)
         setupItems()
-        setupStaffToolInventory()
+        setupStaffTools()
         setupSpider(ecs)
         setupLaserPointer(ecs)
 
