@@ -20,19 +20,28 @@ enum class CinderweaverSize(val scale: Double) {
     val id: String get() = name.lowercase()
 
     companion object {
+        const val MIN_SCALE = 0.25
+        const val MAX_SCALE = 2.5
+
         fun fromId(id: String): CinderweaverSize? = entries.find { it.id == id.lowercase() }
+
+        /** A named size or any scale from [MIN_SCALE] to [MAX_SCALE]. */
+        fun parseScale(id: String): Double? =
+            fromId(id)?.scale ?: id.toDoubleOrNull()?.takeIf { it.isFinite() && it in MIN_SCALE..MAX_SCALE }
     }
 }
 
 /** Organic, real-spider-inspired dark fantasy art direction; no resource pack required. */
-fun cinderweaver(size: CinderweaverSize = CinderweaverSize.HUNTER): SpiderOptions {
+fun cinderweaver(size: CinderweaverSize = CinderweaverSize.HUNTER): SpiderOptions = cinderweaver(size.scale)
+
+fun cinderweaver(scale: Double): SpiderOptions {
     val options = SpiderOptions()
-    options.bodyPlan = cinderweaverBodyPlan(size)
+    options.bodyPlan = cinderweaverBodyPlan(scale)
     options.useOrganicSounds()
     options.walkGait.maxSpeed = 0.12
     options.gallopGait.maxSpeed = 0.24
-    options.walkGait.scale(size.scale)
-    options.gallopGait.scale(size.scale)
+    options.walkGait.scale(scale)
+    options.gallopGait.scale(scale)
     return options
 }
 
@@ -59,7 +68,9 @@ internal fun upgradeClockworkAppearance(plan: BodyPlan): Boolean {
     return true
 }
 
-internal fun cinderweaverBodyPlan(size: CinderweaverSize): BodyPlan {
+internal fun cinderweaverBodyPlan(size: CinderweaverSize): BodyPlan = cinderweaverBodyPlan(size.scale)
+
+internal fun cinderweaverBodyPlan(scale: Double): BodyPlan {
     val plan = octopodBodyPlan(3, 0.7)
     plan.bodyModel = cinderweaverTorso()
 
@@ -89,7 +100,7 @@ internal fun cinderweaverBodyPlan(size: CinderweaverSize): BodyPlan {
     val eye = PaletteEntry(Material.RED_TERRACOTTA.createBlockData(), Display.Brightness(5, 0))
     plan.eyePalette = listOf(eye)
     plan.blinkingPalette = listOf(eye)
-    plan.scale(size.scale)
+    plan.scale(scale)
     return plan
 }
 

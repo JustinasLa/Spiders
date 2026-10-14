@@ -69,6 +69,19 @@ class CinderweaverTest {
     }
 
     @Test
+    fun `spawn sizes accept the named presets or any scale in range`() {
+        assertEquals(0.35, CinderweaverSize.parseScale("hatchling"))
+        assertEquals(1.5, CinderweaverSize.parseScale("BroodMother"))
+        assertEquals(1.2, CinderweaverSize.parseScale("1.2"))
+        assertEquals(0.25, CinderweaverSize.parseScale("0.25"))
+        assertEquals(2.5, CinderweaverSize.parseScale("2.5"))
+        for (invalid in listOf("0.2", "2.6", "0", "-1", "NaN", "Infinity", "huge", "")) {
+            assertNull(CinderweaverSize.parseScale(invalid), invalid)
+        }
+        assertEquals(1.2, cinderweaverBodyPlan(1.2).scale, 1e-9)
+    }
+
+    @Test
     fun `separately spawned spiders do not share mutable geometry`() {
         val first = cinderweaverBodyPlan(CinderweaverSize.HUNTER)
         val second = cinderweaverBodyPlan(CinderweaverSize.HUNTER)

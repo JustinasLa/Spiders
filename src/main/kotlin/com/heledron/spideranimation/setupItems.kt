@@ -7,7 +7,6 @@ import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.laser.LaserPoint
-import com.heledron.spideranimation.spider.configuration.OrientationMode
 import com.heledron.spideranimation.spider.presets.defaultPreset
 import com.heledron.spideranimation.spider.presets.upgradeClockworkAppearance
 import com.heledron.spideranimation.spider.presets.useOrganicSounds
@@ -65,6 +64,8 @@ fun setupItems() {
 			player.world.playSound(hitPosition, Sound.ENTITY_SPIDER_AMBIENT, .4f, .7f)
 
 			val options = item.spiderOptions ?: defaultPreset()
+			// placed on a wall or ceiling: it has to cling on
+			if (up.y < .7) options.climbing = true
 			val yawDirection = FORWARD_VECTOR.rotate(Quaternionf().rotationY(player.yawRadians()))
 			val orientation = SpiderBody.snapRotationAbout(
 				SpiderBody.orientationFrom(up, player.direction, yawDirection),
@@ -149,10 +150,9 @@ fun setupItems() {
     toggleGripComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
-        options.gait.grip = !options.gait.grip
-        options.gait.scanOrientation = if (options.gait.grip) OrientationMode.GroundOrientation else OrientationMode.YAxis
+        options.climbing = !options.climbing
         player.world.playSound(player.position, Sound.BLOCK_HONEY_BLOCK_HIT, 1.0f, 2.0f)
-        player.sendActionBar(Component.text(if (!options.gait.grip) "Grip off" else "Grip on"))
+        player.sendActionBar(Component.text(if (!options.climbing) "Wall climbing off" else "Wall climbing on"))
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")

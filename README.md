@@ -21,6 +21,9 @@ Quick start, as authorised staff:
 /spider spawn hatchling
 /spider spawn hunter
 /spider spawn broodmother
+/spider spawn 1.2
+/spider gait gallop
+/spider climb on
 /spider tools
 /spider list
 /spider scale 1.2
@@ -31,17 +34,33 @@ Quick start, as authorised staff:
 
 Aim at a solid surface within 32 blocks when spawning. Console or staff can also
 use `/spider spawn hunter at <world> <x> <y> <z>` in an already loaded chunk.
-Hatchling, hunter and broodmother scales are 0.35, 0.8 and 1.5; manual scaling
-accepts 0.25–2.5. Up to six spiders may be active at once during Dev testing.
+Hatchling, hunter and broodmother scales are 0.35, 0.8 and 1.5; `/spider spawn`
+also accepts any scale from 0.25 to 2.5 (for example `/spider spawn 2.2`), and
+`/spider scale` resizes a spawned spider within the same range. Up to six spiders
+may be active at once during Dev testing.
+
+**Walls and ceilings.** `/spider climb on` (or the Clinging Charm) lets the
+targeted spider walk up walls, across ceilings and over ledges; `/spider climb off`
+lets it drop back to the floor. Aiming `/spider spawn` or the Summoning Seal at a
+wall or ceiling spawns the spider clinging to that face with climbing already on.
+Climbing applies to both gaits.
+
+**Gallop.** `/spider gait gallop` or `/spider gait walk` (or the Hunting Instinct
+tool) switches the targeted spider's gait. A rider can also hold the sprint key
+while moving to gallop, returning to a walk when they let go.
+
+Commands that act on one spider use the spider linked to the Summoning Seal in
+your hand, otherwise the nearest spider in your world.
 
 Take controls from `/spider tools`. Right-click the Summoning Seal to create or
 recall its linked spider. Hold the Brood Guide and aim at terrain to guide the
 spiders; hold the Broodcall Whistle to call them towards you. Spiders follow the
 nearest staff beacon in the same world, using the upstream steering system. A saddle
 on a spider's hidden seat allows staff to mount it and drive with movement keys;
-sneak to dismount. The other tools inspect joints, switch gait or wall grip,
-or show the animation debug view. These spiders do not yet have hostile dungeon
-AI, health, loot, eggs or persistent nests.
+sneak to dismount. On a wall or ceiling the rider steers by looking: forward is
+the look direction flattened onto the surface. The other tools inspect joints,
+switch gait or wall climbing, or show the animation debug view. These spiders do
+not yet have hostile dungeon AI, health, loot, eggs or persistent nests.
 
 Existing seals containing a clockwork Cinderweaver automatically receive the
 organic appearance and sounds while keeping their scale and edited leg rig.
@@ -52,8 +71,8 @@ plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission/model tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.4.jar`** shaded
+Build and run the permission, model and climbing-simulation tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.5.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
