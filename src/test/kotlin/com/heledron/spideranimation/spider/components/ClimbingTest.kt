@@ -239,6 +239,40 @@ class ClimbingTest {
         for (degrees in listOf(90, 180, 270)) climbRoom(0.8, gallop = false, degrees = degrees)
     }
 
+    /** Same placement as /spider spawn aimed at a face: oriented to the face, raised along its normal. */
+    private fun spawnOnFace(world: World, hit: Vector, normal: Vector, look: Vector): Run {
+        val orientation = SpiderBody.orientationFrom(normal, look, Vector(0.0, 0.0, 1.0))
+        val run = spawn(world, 0.8, gallop = false, Vector(), orientation = orientation)
+        run.body.teleport(com.heledron.spideranimation.utilities.ecs.ECSEntity(),
+            hit.clone().add(normal.clone().multiply(run.gait.stationary.bodyHeight)))
+        return run
+    }
+
+    @Test
+    fun `a spider spawned on a wall clings and climbs to the ceiling`() {
+        // aimed horizontally at the wall's face (z = 10, facing -z)
+        val run = spawnOnFace(Room(::wallAndCeiling).world(), Vector(.5, 3.0, 10.0), Vector(0.0, 0.0, -1.0), Vector(0.0, 0.0, 1.0))
+        assertTrue(run.up().z < -.99, "Not facing out of the wall: ${run.up()}")
+        val trace = StringBuilder()
+        var onCeiling = false
+        run.walkForward(1200) { tick ->
+            if (tick % 40 == 0) trace.append(run.describe(tick))
+            if (run.up().y < -.9) onCeiling = true
+            onCeiling
+        }
+        assertTrue(onCeiling, "Never reached the ceiling from the wall:\n$trace${run.describe(-1)}")
+    }
+
+    @Test
+    fun `a spider spawned on the ceiling hangs and walks along it`() {
+        val run = spawnOnFace(Room(::wallAndCeiling).world(), Vector(.5, 8.0, 0.5), Vector(0.0, -1.0, 0.0), Vector(0.0, .3, -1.0))
+        val trace = StringBuilder()
+        run.walkForward(300) { tick -> if (tick % 40 == 0) trace.append(run.describe(tick)); false }
+        assertTrue(run.up().y < -.9, "Fell off the ceiling:\n$trace${run.describe(-1)}")
+        assertTrue(run.body.position.y > 6.5, "Hung too low:\n$trace${run.describe(-1)}")
+        assertTrue(run.body.position.z < -5, "Did not walk along the ceiling:\n$trace${run.describe(-1)}")
+    }
+
     @Test
     fun `turning climbing off on the ceiling drops the spider back onto its feet`() {
         val run = spawn(Room(::wallAndCeiling).world(), 0.8, gallop = false, Vector(.5, 0.0, 2.5))
