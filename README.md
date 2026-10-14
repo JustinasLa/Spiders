@@ -86,6 +86,25 @@ blocks at their true colour, lit like the world around them. The old dimmed
 matching, which looks washed out with bright gamma, is still available with
 `/spider options spider_options.cloak.allowCustomBrightness set true`.
 
+**Mimic.** `/spider mimic place` (or `/spider spawn mimic`) puts a dormant mimic
+on the floor you aim at, facing you: a real chest block, so it looks exactly like
+one and stays put through restarts. Anyone who right-clicks or hits it wakes it.
+The chest bursts open with a double, full-volume screech that every player within 80
+blocks hears from its direction, rises on
+four long legs, turns its back on whoever woke it and gallops away at 7 blocks/s,
+lid flapping. It keeps running directly away from that player (around obstacles
+if it gets stuck) until it's 250 blocks from them, then sits back down as a chest
+for them to hunt down. The plugin keeps the chunks it runs through loaded, but it
+stops early rather than enter terrain that has never been generated. Anything
+hoppered or stuffed inside is spat out. Woken by the console, with no player to
+flee, it stays put and settles back into a chest after 20 idle seconds. It can't be opened,
+emptied by hoppers or blown up, and only staff can break it (in creative mode, to
+remove it). `/spider mimic wake` and `/spider mimic sleep` do the same by command;
+console uses `/spider mimic place|wake at <world> <x> <y> <z>`. Awake mimics count
+towards the six-creature limit and take the usual staff steering, gait and pounce
+commands; they stay chest-sized and don't climb. A mimic that is awake when the
+server stops drops back into a chest where it stands.
+
 Commands that act on one spider use the spider linked to the Summoning Seal in
 your hand, otherwise the nearest spider in your world.
 
@@ -103,13 +122,15 @@ Existing seals containing a clockwork Cinderweaver automatically receive the
 organic appearance and sounds while keeping their scale and edited leg rig.
 Take fresh tools from `/spider tools` for the new names and item appearances.
 
-All visuals are vanilla display entities. **No resource pack, client mod or other
-plugin is required or modified.** Spiders are temporary test entities: removing
+All visuals are vanilla display entities. **Cinderweavers need no resource pack,
+client mod or other plugin.** Mimics draw the vanilla chest and its wood through the
+small item-model pack in [`resourcepack/`](resourcepack/README.md); install it with
+ItemsAdder (or any server pack) or awake mimics show as missing models. Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission, model, climbing, pounce, hit and shroud tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.11.jar`** shaded
+Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.15.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.

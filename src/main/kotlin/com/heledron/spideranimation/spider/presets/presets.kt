@@ -23,14 +23,14 @@ private const val KNEE_LEEWAY = 0.65 * PI
 private val PED_HIP_ROTATION = -(20f.toRadians())
 private val BOT_HIP_ROTATION = (40f.toRadians())
 
-private fun hipJoint(): IKJoint3D = IKSwingTwistJoint3D(
+internal fun hipJoint(): IKJoint3D = IKSwingTwistJoint3D(
     maxSwing = ROOT_MAX_SWING,
     minTwist = -ROOT_TWIST,
     maxTwist = ROOT_TWIST,
     referenceAxis = UP_VECTOR,
 )
 
-private fun kneeJoint(leeway: Double = KNEE_LEEWAY, inverted: Boolean = false): IKJoint3D = kneeJoint(
+internal fun kneeJoint(leeway: Double = KNEE_LEEWAY, inverted: Boolean = false): IKJoint3D = kneeJoint(
     min = if (inverted) -leeway else 0.0,
     max = if (inverted) 0.0 else leeway,
 )

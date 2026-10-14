@@ -1,6 +1,7 @@
 package com.heledron.spideranimation.commands
 
 import com.heledron.spideranimation.AppState
+import com.heledron.spideranimation.spider.components.Mimic
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.presets.CinderweaverSize
 import com.heledron.spideranimation.spider.presets.cinderweaver
@@ -24,7 +25,7 @@ import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.joml.Quaternionf
 
-private val SIZE_SUGGESTIONS = CinderweaverSize.entries.map { it.id } + listOf("0.25", "0.5", "1.0", "2.0", "2.5")
+private val SIZE_SUGGESTIONS = CinderweaverSize.entries.map { it.id } + listOf("mimic", "0.25", "0.5", "1.0", "2.0", "2.5")
 
 internal fun spawnCommand(): LiteralArgumentBuilder<CommandSourceStack> = Commands.literal("spawn").then(
     Commands.argument("size", StringArgumentType.word())
@@ -33,6 +34,7 @@ internal fun spawnCommand(): LiteralArgumentBuilder<CommandSourceStack> = Comman
             builder.buildFuture()
         }
         .executes { ctx ->
+            if (StringArgumentType.getString(ctx, "size").equals(MIMIC, ignoreCase = true)) return@executes placeAimed(ctx)
             val player = ctx.source.sender as? Player ?: throw error("Console: /spider spawn <size> at <world> <x> <y> <z>")
             val hit = player.world.raycastGround(player.eyePosition, player.direction, 32.0)
                 ?: throw error("Aim at a nearby solid surface to spawn a Cinderweaver.")
@@ -63,11 +65,14 @@ internal fun spawnCommand(): LiteralArgumentBuilder<CommandSourceStack> = Comman
         ))
 )
 
+private const val MIMIC = "mimic"
+
 /** Faces whose normal points less upward than this are walls or ceilings. */
 private const val SURFACE_FLOOR_MIN_UP = .7
 
 private fun spawn(ctx: CommandContext<CommandSourceStack>, location: Location, orientation: Quaternionf, onSurface: Boolean): Int {
     val sizeId = StringArgumentType.getString(ctx, "size")
+    if (sizeId.equals(MIMIC, ignoreCase = true)) throw error("Console: /spider mimic place at <world> <x> <y> <z>")
     val scale = CinderweaverSize.parseScale(sizeId)
         ?: throw error("Size must be hatchling, hunter, broodmother or a scale from ${CinderweaverSize.MIN_SCALE} to ${CinderweaverSize.MAX_SCALE}.")
     val world = location.world
@@ -90,8 +95,9 @@ private fun spawn(ctx: CommandContext<CommandSourceStack>, location: Location, o
 internal fun listCommand(): LiteralArgumentBuilder<CommandSourceStack> = Commands.literal("list").executes { ctx ->
     val spiders = AppState.ecs.query<ECSEntity, SpiderBody>().filter { !it.first.scheduledForRemoval }
     ctx.source.sender.sendPlainMessage("Cinderweavers: ${spiders.size}/${AppState.MAX_SPIDERS}")
-    for ((_, body) in spiders) {
-        ctx.source.sender.sendPlainMessage("${body.uuid.toString().take(8)} • ${body.world.name} • ${body.position.blockX}, ${body.position.blockY}, ${body.position.blockZ}")
+    for ((entity, body) in spiders) {
+        val kind = entity.query<Mimic>()?.let { " • mimic (${it.state.name.lowercase()})" } ?: ""
+        ctx.source.sender.sendPlainMessage("${body.uuid.toString().take(8)} • ${body.world.name} • ${body.position.blockX}, ${body.position.blockY}, ${body.position.blockZ}$kind")
     }
     1
 }

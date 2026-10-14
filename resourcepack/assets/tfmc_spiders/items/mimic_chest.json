@@ -1,0 +1,498 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "entries": [
+      {
+        "threshold": 0.0125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.025
+          }
+        }
+      },
+      {
+        "threshold": 0.0375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.05
+          }
+        }
+      },
+      {
+        "threshold": 0.0625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.075
+          }
+        }
+      },
+      {
+        "threshold": 0.0875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.1
+          }
+        }
+      },
+      {
+        "threshold": 0.1125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.125
+          }
+        }
+      },
+      {
+        "threshold": 0.1375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.15
+          }
+        }
+      },
+      {
+        "threshold": 0.1625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.175
+          }
+        }
+      },
+      {
+        "threshold": 0.1875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.2
+          }
+        }
+      },
+      {
+        "threshold": 0.2125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.225
+          }
+        }
+      },
+      {
+        "threshold": 0.2375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.25
+          }
+        }
+      },
+      {
+        "threshold": 0.2625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.275
+          }
+        }
+      },
+      {
+        "threshold": 0.2875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.3
+          }
+        }
+      },
+      {
+        "threshold": 0.3125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.325
+          }
+        }
+      },
+      {
+        "threshold": 0.3375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.35
+          }
+        }
+      },
+      {
+        "threshold": 0.3625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.375
+          }
+        }
+      },
+      {
+        "threshold": 0.3875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.4
+          }
+        }
+      },
+      {
+        "threshold": 0.4125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.425
+          }
+        }
+      },
+      {
+        "threshold": 0.4375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.45
+          }
+        }
+      },
+      {
+        "threshold": 0.4625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.475
+          }
+        }
+      },
+      {
+        "threshold": 0.4875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.5
+          }
+        }
+      },
+      {
+        "threshold": 0.5125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.525
+          }
+        }
+      },
+      {
+        "threshold": 0.5375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.55
+          }
+        }
+      },
+      {
+        "threshold": 0.5625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.575
+          }
+        }
+      },
+      {
+        "threshold": 0.5875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.6
+          }
+        }
+      },
+      {
+        "threshold": 0.6125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.625
+          }
+        }
+      },
+      {
+        "threshold": 0.6375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.65
+          }
+        }
+      },
+      {
+        "threshold": 0.6625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.675
+          }
+        }
+      },
+      {
+        "threshold": 0.6875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.7
+          }
+        }
+      },
+      {
+        "threshold": 0.7125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.725
+          }
+        }
+      },
+      {
+        "threshold": 0.7375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.75
+          }
+        }
+      },
+      {
+        "threshold": 0.7625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.775
+          }
+        }
+      },
+      {
+        "threshold": 0.7875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.8
+          }
+        }
+      },
+      {
+        "threshold": 0.8125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.825
+          }
+        }
+      },
+      {
+        "threshold": 0.8375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.85
+          }
+        }
+      },
+      {
+        "threshold": 0.8625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.875
+          }
+        }
+      },
+      {
+        "threshold": 0.8875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.9
+          }
+        }
+      },
+      {
+        "threshold": 0.9125,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.925
+          }
+        }
+      },
+      {
+        "threshold": 0.9375,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.95
+          }
+        }
+      },
+      {
+        "threshold": 0.9625,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 0.975
+          }
+        }
+      },
+      {
+        "threshold": 0.9875,
+        "model": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/chest",
+          "model": {
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "openness": 1.0
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:special",
+      "base": "minecraft:item/chest",
+      "model": {
+        "type": "minecraft:chest",
+        "texture": "minecraft:normal",
+        "openness": 0.0
+      }
+    }
+  }
+}
