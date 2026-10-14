@@ -13,6 +13,16 @@ class SpiderOptions : ECSComponent {
 	/** Currently active gait. */
     val gait get() = if (gallop) gallopGait else walkGait
 
+    /** Walls and ceilings: both gaits grip and follow the surface beneath the legs. */
+    var climbing
+        get() = gait.grip
+        set(value) {
+            for (gait in listOf(walkGait, gallopGait)) {
+                gait.grip = value
+                gait.scanOrientation = if (value) OrientationMode.GroundOrientation else OrientationMode.YAxis
+            }
+        }
+
     var cloak = CloakOptions()
 
     var bodyPlan = BodyPlan()

@@ -9,6 +9,7 @@ import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.SoundsAndParticles
 import com.heledron.spideranimation.spider.components.TridentHitDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
+import com.heledron.spideranimation.spider.presets.CinderweaverSize
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
@@ -35,8 +36,8 @@ object AppState {
         orientation: Quaternionf = Quaternionf(),
     ): ECSEntity? {
         if (!StaffAccess.require(actor)) return null
-        if (!options.bodyPlan.scale.isFinite() || options.bodyPlan.scale !in 0.25..2.5) {
-            actor.sendPlainMessage("Cinderweaver scale must be between 0.25 and 2.5.")
+        if (!options.bodyPlan.scale.isFinite() || options.bodyPlan.scale !in CinderweaverSize.MIN_SCALE..CinderweaverSize.MAX_SCALE) {
+            actor.sendPlainMessage("Cinderweaver scale must be between ${CinderweaverSize.MIN_SCALE} and ${CinderweaverSize.MAX_SCALE}.")
             return null
         }
         if (spiderCount() >= MAX_SPIDERS) {

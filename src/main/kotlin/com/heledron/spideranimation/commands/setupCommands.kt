@@ -47,11 +47,13 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
     Commands.literal("spider")
         .requires { StaffAccess.canUse(it.sender) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, climb <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
         .then(scaleCommand(afterChange))
+        .then(gaitCommand())
+        .then(climbCommand())
         .then(splayCommand())
         .then(itemsCommand())
         .then(Commands.literal("tools").executes { ctx ->
@@ -204,6 +206,32 @@ private fun scaleCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comman
                 SUCCESS
             }
     )
+
+private fun gaitCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setGait(ctx: CommandContext<CommandSourceStack>, gallop: Boolean): Int {
+        val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+        options.gallop = gallop
+        ctx.source.sender.sendPlainMessage(if (gallop) "Gallop mode" else "Walk mode")
+        return SUCCESS
+    }
+
+    return Commands.literal("gait")
+        .then(Commands.literal("walk").executes { ctx -> setGait(ctx, false) })
+        .then(Commands.literal("gallop").executes { ctx -> setGait(ctx, true) })
+}
+
+private fun climbCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setClimbing(ctx: CommandContext<CommandSourceStack>, climbing: Boolean): Int {
+        val options = requireTargetSpider(ctx.source).query<SpiderOptions>() ?: throw commandError("No spider found")
+        options.climbing = climbing
+        ctx.source.sender.sendPlainMessage(if (climbing) "Wall climbing on: walls and ceilings" else "Wall climbing off")
+        return SUCCESS
+    }
+
+    return Commands.literal("climb")
+        .then(Commands.literal("on").executes { ctx -> setClimbing(ctx, true) })
+        .then(Commands.literal("off").executes { ctx -> setClimbing(ctx, false) })
+}
 
 private fun splayCommand(): LiteralArgumentBuilder<CommandSourceStack> =
     Commands.literal("splay")

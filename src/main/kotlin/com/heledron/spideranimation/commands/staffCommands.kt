@@ -5,8 +5,12 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.presets.CinderweaverSize
 import com.heledron.spideranimation.spider.presets.cinderweaver
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
+import com.heledron.spideranimation.utilities.overloads.yawRadians
 import com.heledron.spideranimation.utilities.raycastGround
 import com.mojang.brigadier.arguments.DoubleArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -18,19 +22,25 @@ import io.papermc.paper.command.brigadier.Commands
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
-import org.bukkit.util.Vector
+import org.joml.Quaternionf
+
+private val SIZE_SUGGESTIONS = CinderweaverSize.entries.map { it.id } + listOf("0.25", "0.5", "1.0", "2.0", "2.5")
 
 internal fun spawnCommand(): LiteralArgumentBuilder<CommandSourceStack> = Commands.literal("spawn").then(
     Commands.argument("size", StringArgumentType.word())
         .suggests { _, builder ->
-            CinderweaverSize.entries.filter { it.id.startsWith(builder.remaining.lowercase()) }.forEach { builder.suggest(it.id) }
+            SIZE_SUGGESTIONS.filter { it.startsWith(builder.remaining.lowercase()) }.forEach { builder.suggest(it) }
             builder.buildFuture()
         }
         .executes { ctx ->
             val player = ctx.source.sender as? Player ?: throw error("Console: /spider spawn <size> at <world> <x> <y> <z>")
             val hit = player.world.raycastGround(player.eyePosition, player.direction, 32.0)
                 ?: throw error("Aim at a nearby solid surface to spawn a Cinderweaver.")
-            spawn(ctx, hit.hitPosition.toLocation(player.world).apply { yaw = player.location.yaw })
+            // Floors, walls and ceilings: the spider stands on the face it was aimed at.
+            val up = hit.hitBlockFace?.direction ?: UP_VECTOR
+            val yawDirection = FORWARD_VECTOR.rotate(Quaternionf().rotationY(player.yawRadians()))
+            val orientation = SpiderBody.orientationFrom(up, player.direction, yawDirection)
+            spawn(ctx, hit.hitPosition.toLocation(player.world), orientation, onSurface = up.y < SURFACE_FLOOR_MIN_UP)
         }
         .then(Commands.literal("at").then(
             Commands.argument("world", StringArgumentType.word())
@@ -46,16 +56,20 @@ internal fun spawnCommand(): LiteralArgumentBuilder<CommandSourceStack> = Comman
                             spawn(ctx, Location(world,
                                 DoubleArgumentType.getDouble(ctx, "x"),
                                 DoubleArgumentType.getDouble(ctx, "y"),
-                                DoubleArgumentType.getDouble(ctx, "z")))
+                                DoubleArgumentType.getDouble(ctx, "z")), Quaternionf(), onSurface = false)
                         }
                     )
                 ))
         ))
 )
 
-private fun spawn(ctx: CommandContext<CommandSourceStack>, location: Location): Int {
-    val size = CinderweaverSize.fromId(StringArgumentType.getString(ctx, "size"))
-        ?: throw error("Size must be hatchling, hunter or broodmother.")
+/** Faces whose normal points less upward than this are walls or ceilings. */
+private const val SURFACE_FLOOR_MIN_UP = .7
+
+private fun spawn(ctx: CommandContext<CommandSourceStack>, location: Location, orientation: Quaternionf, onSurface: Boolean): Int {
+    val sizeId = StringArgumentType.getString(ctx, "size")
+    val scale = CinderweaverSize.parseScale(sizeId)
+        ?: throw error("Size must be hatchling, hunter, broodmother or a scale from ${CinderweaverSize.MIN_SCALE} to ${CinderweaverSize.MAX_SCALE}.")
     val world = location.world
     if (!location.isFinite || location.y < world.minHeight || location.y >= world.maxHeight) {
         throw error("Choose a position within the world's build height.")
@@ -63,9 +77,13 @@ private fun spawn(ctx: CommandContext<CommandSourceStack>, location: Location): 
     if (!world.isChunkLoaded(location.blockX shr 4, location.blockZ shr 4)) {
         throw error("Visit that area first; spiders only spawn in loaded chunks.")
     }
-    val entity = AppState.createSpider(ctx.source.sender, world, location.toVector(), cinderweaver(size)) ?: return 0
-    entity.query<SpiderBody>()?.preferredOrientation?.rotationY(Math.toRadians(-location.yaw.toDouble()).toFloat())
-    ctx.source.sender.sendPlainMessage("Spawned Cinderweaver ${size.id}. ${AppState.spiderCount()}/${AppState.MAX_SPIDERS} active. /spider tools opens its controls.")
+    val options = cinderweaver(scale)
+    // A spider placed on a wall or ceiling has to cling to it.
+    if (onSurface) options.climbing = true
+    AppState.createSpider(ctx.source.sender, world, location.toVector(), options, orientation) ?: return 0
+    val name = CinderweaverSize.fromId(sizeId)?.id ?: "at scale $scale"
+    val climbing = if (onSurface) " Clinging to the surface (wall climbing on)." else ""
+    ctx.source.sender.sendPlainMessage("Spawned Cinderweaver $name.$climbing ${AppState.spiderCount()}/${AppState.MAX_SPIDERS} active. /spider tools opens its controls.")
     return 1
 }
 

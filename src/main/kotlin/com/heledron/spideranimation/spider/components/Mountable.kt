@@ -8,6 +8,7 @@ import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.addEventListener
 import com.heledron.spideranimation.utilities.events.onInteractEntity
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.playSound
@@ -31,6 +32,8 @@ import org.joml.Quaternionf
 class Mountable : ECSComponent {
     var currentMarker: ArmorStand? = null
     var currentPig: Pig? = null
+    /** Gallop switched on by the rider's sprint key, to be switched off again when they let go. */
+    var sprintGallop = false
     fun getRider() = currentMarker?.passengers?.firstOrNull() as? Player
 }
 
@@ -40,8 +43,12 @@ fun setupMountable(app: ECS) {
     // Handle user input
     @Suppress("UnstableApiUsage")
     app.onTick {
-        for ((mountable, _, options, entity) in app.query<Mountable, SpiderBody, SpiderOptions, ECSEntity>()) {
-            val player = mountable.getRider() ?: continue
+        for ((mountable, spider, options, entity) in app.query<Mountable, SpiderBody, SpiderOptions, ECSEntity>()) {
+            val player = mountable.getRider()
+            if (player == null) {
+                if (mountable.sprintGallop) setSprintGallop(mountable, options, false)
+                continue
+            }
             if (!StaffAccess.canUse(player)) {
                 player.leaveVehicle()
                 continue
@@ -54,6 +61,27 @@ fun setupMountable(app: ECS) {
             if (player.currentInput.isForward) input.z += 1.0
             if (player.currentInput.isBackward) input.z -= 1.0
 
+            // hold sprint to gallop
+            val sprinting = player.currentInput.isSprint && !input.isZero
+            if (sprinting && !options.gallop) setSprintGallop(mountable, options, true)
+            if (!sprinting && mountable.sprintGallop) setSprintGallop(mountable, options, false)
+
+            if (options.climbing) {
+                // steer along the wall or ceiling: forward is where the rider looks, flattened onto it
+                val up = UP_VECTOR.rotate(spider.preferredOrientation)
+                val forward = alongSurface(player.direction, up)
+                    .takeIf { it.lengthSquared() > MIN_LOOK_ALONG_SURFACE * MIN_LOOK_ALONG_SURFACE }
+                    ?: alongSurface(spider.forwardDirection(), up)
+                forward.normalize()
+                val left = up.clone().crossProduct(forward)
+                val direction = forward.clone().multiply(input.z).add(left.multiply(input.x))
+                if (!direction.isZero) direction.normalize()
+
+                locomotion.face(forward, Locomotion.RIDER_PRIORITY)
+                locomotion.walk(direction.multiply(options.gait.maxSpeed), Locomotion.RIDER_PRIORITY)
+                continue
+            }
+
             val rotation = Quaternionf().rotationYXZ(player.yawRadians(), .0f, .0f)
             val direction = if (input.isZero) input else input.rotate(rotation).normalize()
 
@@ -64,11 +92,15 @@ fun setupMountable(app: ECS) {
 
     // Render pig and marker
     app.onRender {
-        for ((spider, mountable) in app.query<SpiderBody, Mountable>()) {
+        for ((spider, mountable, options) in app.query<SpiderBody, Mountable, SpiderOptions>()) {
             val location = spider.location().add(spider.velocity)
 
-            val pigLocation = location.clone().add(Vector(.0, -.6, .0))
-            val markerLocation = location.clone().add(Vector(.0, .3, .0))
+            // seat on the spider's back, which faces sideways or down on walls and ceilings
+            val up = if (options.climbing) UP_VECTOR.rotate(spider.orientation) else UP_VECTOR
+            val pigLocation = location.clone().add(up.clone().multiply(-.6))
+            val markerLocation = location.clone().add(up.clone().multiply(.3))
+            // under a ceiling the rider hangs below the belly instead of standing in the blocks above
+            if (up.y < 0) markerLocation.y += up.y * RIDER_HEIGHT
 
             RenderEntity(
                 clazz = Pig::class.java,
@@ -103,6 +135,17 @@ fun setupMountable(app: ECS) {
             ).submit(spider to "mountable.marker")
         }
     }
+}
+
+private const val MIN_LOOK_ALONG_SURFACE = .35
+private const val RIDER_HEIGHT = 1.8
+
+private fun alongSurface(direction: Vector, up: Vector): Vector =
+    direction.clone().subtract(up.clone().multiply(direction.dot(up)))
+
+private fun setSprintGallop(mountable: Mountable, options: SpiderOptions, gallop: Boolean) {
+    options.gallop = gallop
+    mountable.sprintGallop = gallop
 }
 
 /** Rechecks both interaction and actual mounting, including direct /ride attempts. */
