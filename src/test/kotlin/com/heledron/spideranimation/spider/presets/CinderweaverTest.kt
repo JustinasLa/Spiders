@@ -1,9 +1,18 @@
 package com.heledron.spideranimation.spider.presets
 
 import com.heledron.spideranimation.spider.components.body.createSpiderLegIK
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.Gait
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import org.bukkit.Bukkit
+import org.bukkit.FluidCollisionMode
+import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.World
+import org.bukkit.block.Block
 import org.bukkit.block.data.BlockData
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
@@ -14,6 +23,8 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.anyDouble
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.*
 import org.mockito.MockedStatic
 import java.nio.file.Files
@@ -85,6 +96,47 @@ class CinderweaverTest {
         assertEquals(8, plan.bodyModel.pieces.count { "eye" in it.tags })
         assertTrue(plan.bodyModel.pieces.none { it.block.material == Material.BLAST_FURNACE })
         assertFalse(upgradeClockworkAppearance(plan), "Current organic plans should be left alone")
+    }
+
+    @Test
+    fun `spawning each size in open air remains finite and falls without phantom ground support`() {
+        val world = mock(World::class.java)
+        val air = mock(Block::class.java)
+        `when`(air.isPassable).thenReturn(true)
+        `when`(world.getBlockAt(any(Location::class.java))).thenReturn(air)
+        `when`(world.getBlockAt(anyInt(), anyInt(), anyInt())).thenReturn(air)
+        `when`(world.rayTraceBlocks(any(Location::class.java), any(Vector::class.java), anyDouble(),
+            eq(FluidCollisionMode.NEVER), eq(true))).thenAnswer { call ->
+            val start = call.getArgument<Location>(0)
+            val direction = call.getArgument<Vector>(1)
+            assertTrue(start.isFinite(), "Raycast start must remain finite")
+            assertTrue(listOf(direction.x, direction.y, direction.z).all { it.isFinite() }, "Raycast direction must remain finite")
+            null
+        }
+        for (size in CinderweaverSize.entries) {
+            val gait = Gait.defaultWalk().apply { scale(size.scale) }
+            val options = mock(SpiderOptions::class.java)
+            `when`(options.gait).thenReturn(gait)
+            val plan = cinderweaverBodyPlan(size)
+            `when`(options.bodyPlan).thenReturn(plan)
+            val body = SpiderBody.create(world, Vector(900.0, 500.0, 1500.0))
+            val app = ECS()
+            val entity = ECSEntity()
+            repeat(20) { body.update(app, entity, options) }
+            assertTrue(listOf(body.position.x, body.position.y, body.position.z).all { it.isFinite() })
+            assertTrue(body.position.y < 500.0)
+            assertTrue(body.legs.none { it.isGrounded() })
+        }
+    }
+
+    @Test
+    fun `console removal prevents an entity from entering the next simulation tick`() {
+        val app = ECS()
+        val entity = app.spawn()
+        app.onTick { assertFalse(entity in app.entities) }
+        entity.remove()
+        app.update()
+        assertTrue(app.entities.isEmpty())
     }
 
     @Test

@@ -96,6 +96,8 @@ class ECS {
     }
 
     fun update() {
+        // Console removals must take effect before a damaged entity can tick again.
+        entities.removeIf { it.scheduledForRemoval }
         for (system in tickSystems) system(this)
         for (system in postTickSystems) system(this)
 

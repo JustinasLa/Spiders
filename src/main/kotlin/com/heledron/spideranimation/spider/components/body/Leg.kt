@@ -46,7 +46,7 @@ class Leg(
 
     val ik = createSpiderLegIK(legPlan)
 
-    var touchingGround = true; private set
+    var touchingGround = target.isGrounded; private set
     var isMoving = false; private set
     var timeSinceBeginMove = 0; private set
     var timeSinceStopMove = 0; private set

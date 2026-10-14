@@ -334,9 +334,8 @@ class SpiderBody(
         val bodyHeight = posture(gait).bodyHeight
 
         // feet position
-        val feetSupport = if (legs.isEmpty()) null else legs
-        	.filter { it.target.isGrounded }
-        	.map { it.target.position }.average()
+        val groundedTargets = legs.filter { it.target.isGrounded }.map { it.target.position }
+        val feetSupport = if (groundedTargets.isEmpty()) null else groundedTargets.average()
 
         // ground position
         val lookAhead = position.clone().add(velocity)
