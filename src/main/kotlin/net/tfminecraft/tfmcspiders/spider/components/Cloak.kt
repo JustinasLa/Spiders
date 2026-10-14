@@ -1,0 +1,182 @@
+package net.tfminecraft.tfmcspiders.spider.components
+
+import net.tfminecraft.tfmcspiders.spider.components.body.SpiderBody
+import net.tfminecraft.tfmcspiders.spider.configuration.CloakOptions
+import net.tfminecraft.tfmcspiders.spider.configuration.SpiderOptions
+import net.tfminecraft.tfmcspiders.utilities.ecs.ECSComponent
+import net.tfminecraft.tfmcspiders.utilities.ecs.ECS
+import net.tfminecraft.tfmcspiders.utilities.ecs.ECSEntity
+import net.tfminecraft.tfmcspiders.utilities.block_colors.findBlockWithColor
+import net.tfminecraft.tfmcspiders.utilities.block_colors.getBlockColor
+import net.tfminecraft.tfmcspiders.utilities.colors.Oklab
+import net.tfminecraft.tfmcspiders.utilities.colors.distanceTo
+import net.tfminecraft.tfmcspiders.utilities.colors.toOklab
+import net.tfminecraft.tfmcspiders.utilities.events.SeriesScheduler
+import net.tfminecraft.tfmcspiders.utilities.events.runLater
+import net.tfminecraft.tfmcspiders.utilities.maths.DOWN_VECTOR
+import net.tfminecraft.tfmcspiders.utilities.overloads.eyePosition
+import org.bukkit.*
+import org.bukkit.block.data.BlockData
+import org.bukkit.entity.Display
+import org.bukkit.util.RayTraceResult
+import org.bukkit.util.Vector
+import java.util.WeakHashMap
+
+class CloakDamageEvent(val entity: ECSEntity, val spider: SpiderBody, val cloak: Cloak)
+
+class CloakToggleEvent(val entity: ECSEntity, val spider: SpiderBody)
+
+class Cloak : ECSComponent {
+    var active = false
+    private var cloakColor = WeakHashMap<Any, Oklab>()
+    private var cloakOverride = WeakHashMap<Any, BlockData>()
+    private var cloakGlitching = false
+
+    fun toggleCloak(app: ECS, entity: ECSEntity) {
+        val spider = entity.query<SpiderBody>() ?: return
+        active = !active
+        app.emit(CloakToggleEvent(entity = entity, spider = spider))
+    }
+
+    fun getPiece(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?, options: CloakOptions): Pair<BlockData, Display.Brightness?> {
+        applyCloak(id, world, position, originalBlock, originalBrightness?.skyLight ?: 15, options)
+
+        val override = cloakOverride[id]
+        if (override != null) return override to Display.Brightness(0, 15)
+
+        val cloakColor = cloakColor[id] ?: return originalBlock to originalBrightness
+        val match = findBlockWithColor(cloakColor.toRGB(), options.allowCustomBrightness)
+        // a full-colour match is lit by the world like the blocks it imitates
+        if (!options.allowCustomBrightness) return match.block to null
+        return match.block to Display.Brightness(0, match.brightness)
+    }
+
+    private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int, options: CloakOptions) {
+        if (cloakGlitching) return
+
+        val originalColor = getBlockColor(originalBlock, originalBrightness)?.toOklab() ?: return
+        val currentColor = cloakColor[id] ?: originalColor
+
+        val targetColor = run getTargetColor@{
+            if (!active) return@getTargetColor originalColor
+
+            val block = shroudSees(world, position) ?: return@getTargetColor currentColor
+            val lightLevel = 15
+            getBlockColor(block, lightLevel)?.toOklab() ?: currentColor
+        }
+
+
+        val lerpAmount = options.lerpSpeed.toFloat() + (Math.random().toFloat() - 0.5f) * options.lerpRandomness.toFloat()
+        val newColor = currentColor
+            .lerp(targetColor, lerpAmount.coerceIn(0f, 1f))
+            .moveTowards(targetColor, options.moveSpeed.toFloat())
+
+        if (newColor == originalColor) cloakColor.remove(id)
+        else cloakColor[id] = newColor
+    }
+
+
+    fun breakCloak(options: CloakOptions) {
+        cloakGlitching = true
+
+        val originalColors = cloakColor.values.toList()
+
+        val glitch = listOf(
+            { id: Any -> cloakOverride[id] = Material.LIGHT_BLUE_GLAZED_TERRACOTTA.createBlockData() },
+            { id: Any -> cloakOverride[id] = Material.CYAN_GLAZED_TERRACOTTA.createBlockData() },
+            { id: Any -> cloakOverride[id] = Material.WHITE_GLAZED_TERRACOTTA.createBlockData() },
+            { id: Any -> cloakOverride[id] = Material.GRAY_GLAZED_TERRACOTTA.createBlockData() },
+
+            { id: Any -> cloakOverride[id] = null },
+            { id: Any -> cloakColor[id] = originalColors.random() },
+        )
+
+        var maxTime = 0
+
+        for ((id) in cloakColor) {
+            val scheduler = SeriesScheduler()
+
+            fun randomSleep(min: Int, max: Int) {
+                scheduler.sleep((min + Math.random() * (max - min)).toLong())
+            }
+
+            randomSleep(0, 3)
+            for (i in 0 until (Math.random() * 4).toInt()) {
+                scheduler.run { glitch.random()(id) }
+                scheduler.sleep(2L)
+            }
+
+            scheduler.run {
+                cloakColor[id] = null
+                cloakOverride[id] = null
+            }
+
+            if (Math.random() < 1.0 / 6) continue
+
+            randomSleep(0, 3)
+
+            for (i in 0 until  (Math.random() * 3).toInt()) {
+                scheduler.run {
+                    cloakOverride[id] = findBlockWithColor(originalColors.random().toRGB(), options.allowCustomBrightness).block
+                }
+
+                randomSleep(5, 15)
+
+                scheduler.run {
+                    cloakOverride[id] = null
+                }
+                scheduler.sleep(2L)
+            }
+
+            if (scheduler.time > maxTime) maxTime = scheduler.time.toInt()
+        }
+
+        runLater(maxTime.toLong()) {
+            cloakGlitching = false
+        }
+    }
+}
+
+/** Players further than this from a piece do not steer the shroud; it copies the ground instead. */
+private const val VIEWER_RANGE = 48.0
+
+private fun Oklab.moveTowards(target: Oklab, maxDelta: Float): Oklab {
+    val delta = this.distanceTo(target)
+    if (delta <= maxDelta) return target
+    val t = maxDelta / delta
+    return this.lerp(target, t)
+}
+
+fun setupCloak(app: ECS) {
+    app.onEvent<SpiderHitEvent> { event ->
+        if (!event.forceful) return@onEvent
+        val cloak = event.entity.query<Cloak>() ?: return@onEvent
+        if (cloak.active) {
+            val options = event.entity.query<SpiderOptions>()?.cloak ?: return@onEvent
+            app.emit(CloakDamageEvent(entity = event.entity, spider = event.spider, cloak = cloak))
+            cloak.breakCloak(options)
+        }
+        cloak.active = false
+    }
+}
+/**
+ * The block a shroud piece at [position] imitates: what lies behind it as seen by the nearest player
+ * in this world, or the ground beneath when nobody is close. Water and lava surfaces count.
+ */
+internal fun shroudSees(world: World, position: Vector): BlockData? {
+    fun surfaceCast(direction: Vector, distance: Double): RayTraceResult? =
+        world.rayTraceBlocks(position.toLocation(world), direction, distance, FluidCollisionMode.ALWAYS, true)
+
+    val viewer = world.players
+        .filter { it.gameMode != GameMode.SPECTATOR }
+        .minByOrNull { it.eyePosition.distanceSquared(position) }
+        ?.takeIf { it.eyePosition.distanceSquared(position) < VIEWER_RANGE * VIEWER_RANGE }
+    val direction = viewer?.let { position.clone().subtract(it.eyePosition) }
+
+    val hit = if (direction == null || direction.lengthSquared() < 1e-8) surfaceCast(DOWN_VECTOR, GROUND_RANGE)
+    else surfaceCast(direction, BEHIND_RANGE)
+    return hit?.hitBlock?.blockData
+}
+
+private const val GROUND_RANGE = 5.0
+private const val BEHIND_RANGE = 30.0
