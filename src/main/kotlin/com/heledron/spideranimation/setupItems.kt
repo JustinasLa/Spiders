@@ -11,9 +11,8 @@ import com.heledron.spideranimation.spider.presets.defaultPreset
 import com.heledron.spideranimation.spider.presets.upgradeClockworkAppearance
 import com.heledron.spideranimation.spider.presets.useOrganicSounds
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
-import com.heledron.spideranimation.utilities.custom_items.attach
-import com.heledron.spideranimation.utilities.custom_items.createNamedItem
-import com.heledron.spideranimation.utilities.custom_items.customItemRegistry
+import com.heledron.spideranimation.utilities.custom_items.StaffTool
+import com.heledron.spideranimation.utilities.custom_items.staffTools
 import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.onTick
@@ -43,8 +42,10 @@ import java.util.UUID
 
 
 fun setupItems() {
-    val spiderComponent = CustomItemComponent("spider")
-    customItemRegistry += { createNamedItem(Material.FERMENTED_SPIDER_EYE, "Cinderweaver Summoning Seal").attach(spiderComponent) }
+    val spiderComponent = CustomItemComponent("spider", Material.FERMENTED_SPIDER_EYE)
+    staffTools += StaffTool(spiderComponent, "Cinderweaver Summoning Seal", "item/fermented_spider_eye",
+        "Summons a Cinderweaver, then recalls it again.",
+        "Right-click a floor, wall or ceiling to summon one there. Right-click again to recall it; the seal keeps its settings. Commands act on the spider linked to the seal in your hand.")
     spiderComponent.onGestureUse { player, item ->
         val storedUuid = item.spiderUUID
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
@@ -83,8 +84,10 @@ fun setupItems() {
     }
 
 
-    val disableLegComponent = CustomItemComponent("disableLeg")
-    customItemRegistry += { createNamedItem(Material.RABBIT_HIDE, "Limb Binding Charm").attach(disableLegComponent) }
+    val disableLegComponent = CustomItemComponent("disableLeg", Material.RABBIT_HIDE)
+    staffTools += StaffTool(disableLegComponent, "Limb Binding Charm", "item/rabbit_hide",
+        "Lames or frees a single leg.",
+        "Hold it and look at a spider's foot to select that leg, then right-click to bind or free it.")
     onTick {
         val players = disableLegComponent.getPlayersHoldingItem().toSet()
         for (pointDetector in AppState.ecs.query<PointDetector>()) {
@@ -104,8 +107,10 @@ fun setupItems() {
         }
     }
 
-    val toggleDebugComponent = CustomItemComponent("toggleDebug")
-    customItemRegistry += { createNamedItem(Material.BONE, "Broodkeeper's Sight").attach(toggleDebugComponent) }
+    val toggleDebugComponent = CustomItemComponent("toggleDebug", Material.BONE)
+    staffTools += StaffTool(toggleDebugComponent, "Broodkeeper's Sight", "item/bone",
+        "Shows the animation debug view for every spider.",
+        "Right-click to show or hide leg targets, step zones and balance.")
     toggleDebugComponent.onGestureUse { player, _ ->
         AppState.renderDebugVisuals = !AppState.renderDebugVisuals
 
@@ -114,8 +119,10 @@ fun setupItems() {
     }
 
 
-    val switchRendererComponent = CustomItemComponent("switchRenderer")
-    customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Spectral Form").attach(switchRendererComponent) }
+    val switchRendererComponent = CustomItemComponent("switchRenderer", Material.LIGHT_BLUE_DYE)
+    staffTools += StaffTool(switchRendererComponent, "Spectral Form", "item/light_blue_dye",
+        "Draws the nearest spider as a particle sketch instead of blocks.",
+        "Right-click to switch the nearest spider between its solid body and particles.")
     switchRendererComponent.onGestureUse { player, _ ->
         val renderer = AppState.findNearestSpider(player)?.query<SpiderRenderer>() ?: return@onGestureUse
         renderer.useParticles = !renderer.useParticles
@@ -127,16 +134,20 @@ fun setupItems() {
         }
     }
 
-    val toggleCloakComponent = CustomItemComponent("toggleCloak")
-    customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Shroud Charm").attach(toggleCloakComponent) }
+    val toggleCloakComponent = CustomItemComponent("toggleCloak", Material.GREEN_DYE)
+    staffTools += StaffTool(toggleCloakComponent, "Shroud Charm", "item/green_dye",
+        "Shrouds the nearest spider so it copies whatever lies behind it.",
+        "Right-click to shroud or unshroud the nearest spider.")
     toggleCloakComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val cloak = entity.query<Cloak>() ?: return@onGestureUse
         cloak.toggleCloak(AppState.ecs, entity)
     }
 
-    val switchGaitComponent = CustomItemComponent("switchGait")
-    customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Hunting Instinct").attach(switchGaitComponent) }
+    val switchGaitComponent = CustomItemComponent("switchGait", Material.BREEZE_ROD)
+    staffTools += StaffTool(switchGaitComponent, "Hunting Instinct", "item/breeze_rod",
+        "Switches the nearest spider between walking and galloping.",
+        "Right-click to switch gait. Riders can also hold sprint to gallop.")
     switchGaitComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -145,8 +156,10 @@ fun setupItems() {
         player.sendActionBar(Component.text(if (!options.gallop) "Walk mode" else "Gallop mode"))
     }
 
-    val toggleGripComponent = CustomItemComponent("toggleGrip")
-    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Clinging Charm").attach(toggleGripComponent) }
+    val toggleGripComponent = CustomItemComponent("toggleGrip", Material.SLIME_BALL)
+    staffTools += StaffTool(toggleGripComponent, "Clinging Charm", "item/slime_ball",
+        "Lets the nearest spider climb walls and ceilings, or drop back to the floor.",
+        "Right-click to switch wall climbing on or off.")
     toggleGripComponent.onGestureUse { player, _ ->
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val options = entity.query<SpiderOptions>() ?: return@onGestureUse
@@ -155,11 +168,15 @@ fun setupItems() {
         player.sendActionBar(Component.text(if (!options.climbing) "Wall climbing off" else "Wall climbing on"))
     }
 
-    val laserPointerComponent = CustomItemComponent("laserPointer")
-    customItemRegistry += { createNamedItem(Material.ARROW, "Brood Guide — aim to guide").attach(laserPointerComponent) }
+    val laserPointerComponent = CustomItemComponent("laserPointer", Material.REDSTONE_TORCH)
+    staffTools += StaffTool(laserPointerComponent, "Brood Guide — aim to guide", "block/redstone_torch",
+        "Spiders walk to wherever you point it.",
+        "Hold it and aim at the ground. Nothing is drawn where it points.")
 
-    val comeHereComponent = CustomItemComponent("comeHere")
-    customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Broodcall Whistle — hold to recall").attach(comeHereComponent) }
+    val comeHereComponent = CustomItemComponent("comeHere", Material.CARROT_ON_A_STICK)
+    staffTools += StaffTool(comeHereComponent, "Broodcall Whistle — hold to recall", "item/carrot_on_a_stick",
+        "Calls the spiders to you.",
+        "Hold it and they walk towards you; put it away to release them.")
 
     class LaserPointExpire(val owner: Player) : ECSComponent {
         var expired = false

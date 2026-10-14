@@ -2,6 +2,8 @@ package com.heledron.spideranimation
 
 import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
+import com.heledron.spideranimation.utilities.custom_items.isStaffTool
+import org.bukkit.Material
 import org.bukkit.Bukkit
 import org.bukkit.NamespacedKey
 import org.bukkit.Server
@@ -39,17 +41,18 @@ class StaffToolsTest {
         currentPlugin = plugin
     }
 
-    private fun tool(): ItemStack {
+    private fun tool(material: Material = Material.FERMENTED_SPIDER_EYE, tagged: Boolean = true): ItemStack {
         val tool = mock(ItemStack::class.java)
+        `when`(tool.type).thenReturn(material)
         val pdc = mock(PersistentDataContainer::class.java)
         `when`(tool.persistentDataContainer).thenReturn(pdc)
-        `when`(pdc.get(any(NamespacedKey::class.java), eq(PersistentDataType.BOOLEAN))).thenReturn(true)
+        `when`(pdc.get(any(NamespacedKey::class.java), eq(PersistentDataType.BOOLEAN))).thenReturn(if (tagged) true else null)
         return tool
     }
 
     @Test
     fun `borrowed spawn tool is inert for nonstaff then works only while permission is present`() {
-        val component = CustomItemComponent("test_spawn")
+        val component = CustomItemComponent("test_spawn", Material.FERMENTED_SPIDER_EYE)
         var actions = 0
         component.onGestureUse { _, _ -> actions++ }
         val captor = ArgumentCaptor.forClass(Listener::class.java)
@@ -72,13 +75,13 @@ class StaffToolsTest {
 
     @Test
     fun `holding a borrowed steering beacon never puts a nonstaff player in the controller set`() {
-        val component = CustomItemComponent("test_beacon")
+        val component = CustomItemComponent("test_beacon", Material.REDSTONE_TORCH)
         val staff = mock(Player::class.java)
         val regular = mock(Player::class.java)
         val inventory = mock(PlayerInventory::class.java)
         `when`(staff.hasPermission(StaffAccess.PERMISSION)).thenReturn(true)
         `when`(staff.inventory).thenReturn(inventory)
-        val heldTool = tool()
+        val heldTool = tool(Material.REDSTONE_TORCH)
         `when`(inventory.itemInMainHand).thenReturn(heldTool)
         `when`(inventory.itemInOffHand).thenReturn(heldTool)
         mockStatic(Bukkit::class.java).use { bukkit ->
@@ -88,5 +91,15 @@ class StaffToolsTest {
             `when`(staff.hasPermission(StaffAccess.PERMISSION)).thenReturn(false)
             assertTrue(component.getPlayersHoldingItem().isEmpty())
         }
+    }
+
+    @Test
+    fun `only the exact tool counts, not a plain item of its type or its tag on another item`() {
+        val component = CustomItemComponent("test_shroud", Material.GREEN_DYE)
+        assertTrue(component.isAttached(tool(Material.GREEN_DYE)))
+        assertFalse(component.isAttached(tool(Material.GREEN_DYE, tagged = false)), "a plain green dye")
+        assertFalse(component.isAttached(tool(Material.LIME_DYE)), "the tag copied onto another item")
+        assertFalse(isStaffTool(tool(Material.GREEN_DYE, tagged = false)))
+        assertTrue(isStaffTool(tool(Material.GREEN_DYE)))
     }
 }

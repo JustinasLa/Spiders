@@ -18,7 +18,7 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.heldSpiderUUID
 import com.heledron.spideranimation.utilities.Serializer
-import com.heledron.spideranimation.utilities.custom_items.openCustomItemInventory
+import com.heledron.spideranimation.utilities.custom_items.openStaffToolMenu
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.interval
 import com.heledron.spideranimation.utilities.events.runLater
@@ -69,7 +69,7 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
         .then(itemsCommand())
         .then(Commands.literal("tools").executes { ctx ->
             val player = ctx.source.sender as? Player ?: throw commandError("Players only")
-            openCustomItemInventory(player)
+            openStaffToolMenu(player)
             SUCCESS
         })
         .then(spawnCommand())
@@ -386,7 +386,7 @@ private fun itemsCommand(): LiteralArgumentBuilder<CommandSourceStack> =
     Commands.literal("items").executes { ctx ->
         val player = ctx.source.sender as? Player
             ?: throw commandError("This command can only be used by players")
-        openCustomItemInventory(player)
+        openStaffToolMenu(player)
         SUCCESS
     }
 

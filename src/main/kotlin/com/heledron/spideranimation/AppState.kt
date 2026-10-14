@@ -105,5 +105,6 @@ object AppState {
 }
 
 class MiscellaneousOptions {
-    var showLaser = true
+    /** Draw a marker where the Brood Guide points. Off: spiders follow it unseen. */
+    var showLaser = false
 }
