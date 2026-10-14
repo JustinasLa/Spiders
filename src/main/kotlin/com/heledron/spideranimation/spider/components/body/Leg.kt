@@ -121,7 +121,7 @@ class Leg(
         } else {
             if (ground != null) target = ground
 
-            if (!target.isGrounded || !canReach(target.position)) {
+            if (!target.isGrounded || !canReach(target.position) || !canStandOn(target.position)) {
                 target = strandedTarget()
             }
         }
@@ -175,6 +175,17 @@ class Leg(
         val angle = spider.rotationalVelocity.dot(surfaceUp.toVector3f()).toDouble()
         if (angle == 0.0) return
         point.subtract(spider.position).rotateAroundAxis(surfaceUp, angle).add(spider.position)
+    }
+
+    /** Without grip a foot can only stand on an upward face; one left on a wall or ceiling lets go. */
+    private fun canStandOn(point: Vector): Boolean {
+        if (options.gait.grip) return true
+        // upright spiders only ever find upward faces, so skip the probe
+        if (UP_VECTOR.rotate(spider.orientation).y > UPRIGHT_MIN_UP) return true
+        // the probe must start in air just above the foot and meet a face below it
+        val above = point.clone().add(Vector(0.0, FLOOR_PROBE, 0.0))
+        val hit = spider.world.raycastGround(above, DOWN_VECTOR, FLOOR_PROBE * 2) ?: return false
+        return hit.hitPosition.distanceSquared(above) > (FLOOR_PROBE / 10) * (FLOOR_PROBE / 10)
     }
 
     /** Footholds must lie in the comfort zone; climbing legs may also reach any face within leg length. */
@@ -387,6 +398,8 @@ class Leg(
     private companion object {
         const val OBSTRUCTION_FRACTION = .9
         const val SAME_SURFACE_MIN_DOT = .7
+        const val UPRIGHT_MIN_UP = .7
+        const val FLOOR_PROBE = .01
         const val CLIMB_REACH_FRACTION = .95
         const val OBSTRUCTED_TARGET_ID = -2
         const val WRAPPED_TARGET_ID = -3

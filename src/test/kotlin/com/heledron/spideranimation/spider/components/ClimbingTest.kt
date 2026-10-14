@@ -240,6 +240,28 @@ class ClimbingTest {
     }
 
     @Test
+    fun `turning climbing off on the ceiling drops the spider back onto its feet`() {
+        val run = spawn(Room(::wallAndCeiling).world(), 0.8, gallop = false, Vector(.5, 0.0, 2.5))
+        var ceilingStart: Vector? = null
+        run.walkForward(2400) {
+            if (ceilingStart == null && run.up().y < -.9 && run.body.position.y > 6) ceilingStart = run.body.position.clone()
+            ceilingStart.let { it != null && it.z - run.body.position.z > 3 }
+        }
+        assertTrue(ceilingStart != null, "Never reached the ceiling: ${run.describe(-1)}")
+
+        run.gait.grip = false
+        run.gait.scanOrientation = OrientationMode.YAxis
+        val trace = StringBuilder()
+        repeat(400) { tick ->
+            run.app.update()
+            if (tick % 20 == 0) trace.append(run.describe(tick))
+        }
+        assertTrue(run.body.position.y < 2.0, "Still on the ceiling:\n$trace${run.describe(-1)}")
+        assertTrue(run.up().y > .9, "Did not land upright:\n$trace${run.describe(-1)}")
+        assertTrue(run.body.legs.count { it.isGrounded() } >= 4, "Not standing on the floor:\n$trace${run.describe(-1)}")
+    }
+
+    @Test
     fun `without climbing the spider stays upright at the wall`() {
         val run = spawn(Room(::wallAndCeiling).world(), 0.8, gallop = false, Vector(.5, 0.0, 2.5), climbing = false)
         run.walkForward(600) { false }
