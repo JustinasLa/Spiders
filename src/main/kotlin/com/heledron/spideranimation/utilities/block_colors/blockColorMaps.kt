@@ -32,6 +32,9 @@ private val blocks = requireResource("block_colors.json")
         this[Material.WARPED_TRAPDOOR] = this[Material.WARPED_PLANKS]!!
         this[Material.BARREL] = this[Material.SPRUCE_PLANKS]!!
         this[Material.RESPAWN_ANCHOR] = this[Material.CRYING_OBSIDIAN]!!
+        // fluids are shroud targets only (not occluding, so never chosen as a display block)
+        this[Material.WATER] = Color.fromRGB(63, 118, 228) // default biome water tint
+        this[Material.LAVA] = Color.fromRGB(207, 92, 20)
 
         // add wood from logs
         for ((material, color) in this.toList()) {

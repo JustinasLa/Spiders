@@ -41,9 +41,12 @@ fun namespacedID(id: String): NamespacedKey {
     return NamespacedKey(currentPlugin, id)
 }
 
+/** A file packaged in the plugin jar (read through its class loader, so it also works without a running server). */
 fun requireResource(name: String): InputStream {
-    return currentPlugin.getResource(name) ?: error("Resource $name not found")
+    return ResourceAnchor::class.java.classLoader.getResourceAsStream(name) ?: error("Resource $name not found")
 }
+
+private object ResourceAnchor
 
 private var commandBlockMinecart: CommandMinecart? = null
 fun runCommandSilently(
