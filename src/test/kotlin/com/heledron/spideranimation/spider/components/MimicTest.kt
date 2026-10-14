@@ -70,7 +70,7 @@ class MimicTest {
     @Test
     fun `opening raises the latch and pushes the tongue over the lip`() {
         val plan = mimicBodyPlan()
-        val latch = plan.bodyModel.pieces.single { it.block.material == Material.IRON_BLOCK }
+        val latch = plan.bodyModel.pieces.single { it.block.material == Material.SMOOTH_STONE }
         val tongue = plan.bodyModel.pieces.filter { MimicShape.TONGUE in it.tags }
         val pose = MimicPose(plan.bodyModel)
 

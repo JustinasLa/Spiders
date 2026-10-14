@@ -29,8 +29,8 @@ object MimicShape {
     const val STANDING_HEIGHT = 1.15
     const val GALLOP_HEIGHT = 1.35
 
-    /** Top of the base, where the lid closes. */
-    const val SEAM = 3 * PX
+    /** Top of the base, where the lid closes: 9 px up, as on the vanilla chest. */
+    const val SEAM = 2 * PX
     /** The lid swings up about its back top edge. */
     val HINGE = Vector3f(0f, SEAM, -HALF)
     val TONGUE_ROOT = Vector3f(0f, SEAM, -3 * PX)
@@ -112,30 +112,26 @@ internal fun mimicChestModel(): DisplayModel {
     val px = MimicShape.PX
     val half = MimicShape.HALF
     val seam = MimicShape.SEAM
-    val wood = Material.OAK_PLANKS
-    val trim = Material.STRIPPED_DARK_OAK_WOOD
+    // Closest block to the chest texture's orange-brown wood; planks are too pale.
+    val wood = Material.YELLOW_TERRACOTTA
     val parts = mutableListOf<BlockDisplayModelPiece>()
 
-    // Base: wooden box with dark corner trim and a black gullet under the lid.
+    // Base: wooden box framed in black like the vanilla chest, with a black gullet under the lid.
     parts += box(wood, -half, -half, -half, half * 2, half + seam, half * 2)
-    for (x in listOf(-1f, 1f)) for (z in listOf(-1f, 1f)) {
-        parts += box(trim, x * half - .6f * px, -half - .02f * px, z * half - .6f * px, 1.2f * px, half + seam, 1.2f * px)
-    }
+    parts += outline(-half, seam)
     parts += box(Material.BLACK_CONCRETE, -half + px, seam, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px)
 
     // Lower teeth point up from the rim; when the lid is shut they sit inside it.
     for (tooth in teeth()) parts += box(Material.BONE_BLOCK, tooth.x - .6f * px, seam, tooth.z - .6f * px,
         1.2f * px, 1.7f * px, 1.2f * px)
 
-    // Lid: the chest top, its latch and the upper teeth all swing together.
+    // Lid: the chest top, its frame, latch and the upper teeth all swing together.
+    // Its bottom edge and the base's top edge make the dark band across the front.
     val lid = mutableListOf<BlockDisplayModelPiece>()
     lid += box(wood, -half, seam, -half, half * 2, half - seam, half * 2)
-    for (x in listOf(-1f, 1f)) for (z in listOf(-1f, 1f)) {
-        lid += box(trim, x * half - .6f * px, seam, z * half - .6f * px, 1.2f * px, half - seam + .02f * px, 1.2f * px)
-    }
-    lid += box(trim, -half - .02f * px, seam, -half - .02f * px, half * 2 + .04f * px, .8f * px, half * 2 + .04f * px)
+    lid += outline(seam, half)
     lid += box(Material.BLACK_CONCRETE, -half + px, seam - .05f * px, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px)
-    lid += box(Material.IRON_BLOCK, -px, seam - 3 * px, half, 2 * px, 4 * px, px)
+    lid += box(Material.SMOOTH_STONE, -px, seam - 2 * px, half, 2 * px, 4 * px, px)
     for (tooth in teeth(offset = .5f)) lid += box(Material.BONE_BLOCK, tooth.x - .6f * px, seam - 1.7f * px, tooth.z - .6f * px,
         1.2f * px, 1.7f * px, 1.2f * px)
     lid.forEach { it.tags = listOf(MimicShape.LID) }
@@ -150,10 +146,29 @@ internal fun mimicChestModel(): DisplayModel {
     return DisplayModel(parts)
 }
 
+/** The vanilla chest's 1 px dark border along all twelve edges of a box from [minY] to [maxY], standing just proud of its faces. */
+private fun outline(minY: Float, maxY: Float): List<BlockDisplayModelPiece> {
+    val px = MimicShape.PX
+    val half = MimicShape.HALF
+    val proud = .03f * px
+    val edge = px + proud
+    val near = -half - proud
+    val far = half - px
+    val parts = mutableListOf<BlockDisplayModelPiece>()
+    for (a in listOf(near, far)) for (b in listOf(near, far)) {
+        // along x, along z (at the top and bottom of the box), and the upright corners
+        parts += box(Material.BLACK_TERRACOTTA, near, if (a == near) minY - proud else maxY - px, b, half * 2 + proud * 2, edge, edge)
+        parts += box(Material.BLACK_TERRACOTTA, b, if (a == near) minY - proud else maxY - px, near, edge, edge, half * 2 + proud * 2)
+        parts += box(Material.BLACK_TERRACOTTA, a, minY - proud, b, edge, maxY - minY + proud * 2, edge)
+    }
+    return parts
+}
+
 /** Points along the front and side rims where fangs grow; [offset] staggers the upper row. */
 private fun teeth(offset: Float = 0f): List<Vector3f> {
     val px = MimicShape.PX
-    val rim = MimicShape.HALF - 1.2f * px
+    // inside the black rim
+    val rim = MimicShape.HALF - 1.8f * px
     val points = mutableListOf<Vector3f>()
     for (i in 0..4) points += Vector3f((-4f + 2f * (i + offset)) * px, 0f, rim)
     for (side in listOf(-1f, 1f)) for (i in 0..2) points += Vector3f(side * rim, 0f, (4f - 3f * (i + offset)) * px)
