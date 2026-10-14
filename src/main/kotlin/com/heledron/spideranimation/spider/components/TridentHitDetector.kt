@@ -1,5 +1,7 @@
 package com.heledron.spideranimation.spider.components
 
+import com.heledron.spideranimation.StaffAccess
+import org.bukkit.entity.Player
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
@@ -26,6 +28,8 @@ fun setupTridentHitDetector(app: ECS) {
                 .filterIsInstance<Trident>()
 
             for (trident in tridents) {
+                val shooter = trident.shooter as? Player ?: continue
+                if (!StaffAccess.canUse(shooter)) continue
                 if (rider !== null && trident.shooter == rider) continue
 
                 if (trident.velocity.length() < 2.0) continue

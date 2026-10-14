@@ -1,9 +1,12 @@
-name: spider-animation
-version: '4.0-SNAPSHOT'
+name: TFMCSpiders
+version: '${version}'
 main: com.heledron.spideranimation.SpiderAnimationPlugin
-api-version: '1.21'
+api-version: '1.21.10'
+description: Staff-operated dark fantasy clockwork spiders for TFMC.
+authors: [TheCymaera, JustinasLa]
+website: https://github.com/JustinasLa/minecraft-spider
 
 permissions:
-  spider-animation.command:
-    description: Allows use of the /spider command
+  tfmc.spider.staff:
+    description: Spawn, edit, steer, ride and remove TFMC spiders and use their tools.
     default: op

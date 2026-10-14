@@ -5,6 +5,7 @@ import com.google.gson.JsonSyntaxException
 import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.MiscellaneousOptions
 import com.heledron.spideranimation.SpiderAnimationPlugin
+import com.heledron.spideranimation.StaffAccess
 import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.splay
@@ -34,7 +35,6 @@ import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Player
 import java.util.concurrent.CompletableFuture
 
-private const val PERMISSION = "spider-animation.command"
 private const val SUCCESS = 1
 
 fun setupCommands(plugin: SpiderAnimationPlugin) {
@@ -45,15 +45,23 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
 
 fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> =
     Commands.literal("spider")
-        .requires { it.sender.hasPermission(PERMISSION) }
+        .requires { StaffAccess.canUse(it.sender) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Usage: /spider <options|scale|splay|items>")
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
         .then(scaleCommand(afterChange))
         .then(splayCommand())
         .then(itemsCommand())
+        .then(Commands.literal("tools").executes { ctx ->
+            val player = ctx.source.sender as? Player ?: throw commandError("Players only")
+            openCustomItemInventory(player)
+            SUCCESS
+        })
+        .then(spawnCommand())
+        .then(listCommand())
+        .then(removeCommand())
         // temp debug
         .then(Commands.literal("fall").then(Commands.argument("height", DoubleArgumentType.doubleArg()).executes { ctx ->
             val height = DoubleArgumentType.getDouble(ctx, "height")
@@ -74,7 +82,8 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
                 val body = spider.query<SpiderBody>()
                 val locomotion = spider.query<Locomotion>()
 
-                if (remaining-- <= 0 || body == null || locomotion == null || spider.scheduledForRemoval) {
+                val actor = ctx.source.sender
+                if (!StaffAccess.canUse(actor) || (actor is Player && !actor.isOnline) || remaining-- <= 0 || body == null || locomotion == null || spider.scheduledForRemoval) {
                     self.close()
                     return@interval
                 }
@@ -176,7 +185,7 @@ private fun resetOption(ctx: CommandContext<CommandSourceStack>, afterChange: ()
 
 private fun scaleCommand(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> =
     Commands.literal("scale").then(
-        Commands.argument("scale", DoubleArgumentType.doubleArg(0.0))
+        Commands.argument("scale", DoubleArgumentType.doubleArg(0.25, 2.5))
             .executes { ctx ->
                 val scale = DoubleArgumentType.getDouble(ctx, "scale")
 
@@ -206,7 +215,9 @@ private fun splayCommand(): LiteralArgumentBuilder<CommandSourceStack> =
 
 private fun splaySpider(ctx: CommandContext<CommandSourceStack>, delay: Long): Int {
     val spider = requireTargetSpider(ctx.source)
-    runLater(delay) { splay(spider) }
+    runLater(delay) {
+        if (StaffAccess.canUse(ctx.source.sender) && !spider.scheduledForRemoval) splay(spider)
+    }
     return SUCCESS
 }
 

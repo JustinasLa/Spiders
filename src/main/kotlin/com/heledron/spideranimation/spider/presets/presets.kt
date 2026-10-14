@@ -130,4 +130,4 @@ fun octoBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
     return options
 }
 
-fun defaultPreset() = hexBot(4, 1.0)
+fun defaultPreset() = cinderweaver()
