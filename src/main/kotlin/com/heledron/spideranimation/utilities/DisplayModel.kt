@@ -1,14 +1,22 @@
 package com.heledron.spideranimation.utilities
 
+import org.bukkit.NamespacedKey
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
 import org.joml.Matrix4f
 
+/**
+ * One block of a model: the unit cube mapped by [transform].
+ * With an [itemModel] it is drawn as an item display of that resource-pack model instead, filling
+ * the same cube; [itemModelData] is its first custom model data float. [block] stays as the fallback.
+ */
 class BlockDisplayModelPiece (
     var block: BlockData,
     var transform: Matrix4f,
     var brightness: Display.Brightness? = null,
     var tags: List<String> = emptyList(),
+    var itemModel: NamespacedKey? = null,
+    var itemModelData: Float = 0f,
 ) {
     fun scale(scale: Float) {
         transform.set(Matrix4f().scale(scale).mul(transform))
@@ -23,6 +31,8 @@ class BlockDisplayModelPiece (
         transform = Matrix4f(transform),
         brightness = brightness?.let { Display.Brightness(it.blockLight, it.skyLight) },
         tags = tags,
+        itemModel = itemModel,
+        itemModelData = itemModelData,
     )
 }
 

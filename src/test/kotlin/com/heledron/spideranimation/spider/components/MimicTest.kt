@@ -44,47 +44,64 @@ class MimicTest {
         (0..7).map { piece.transform.transformPosition(Vector3f((it and 1).toFloat(), (it shr 1 and 1).toFloat(), (it shr 2 and 1).toFloat())) }
 
     @Test
-    fun `shut mimic fits a vanilla chest and hides its mouth`() {
+    fun `shut mimic is the vanilla chest with its mouth hidden inside`() {
         val plan = mimicBodyPlan()
         MimicPose(plan.bodyModel).apply(0f, 0f, 0f)
 
-        for (piece in plan.bodyModel.pieces) {
+        val chest = plan.bodyModel.pieces.single { MimicShape.CHEST in it.tags }
+        assertEquals(MimicShape.CHEST_MODEL, chest.itemModel)
+        assertEquals(0f, chest.itemModelData)
+        // the item model's cube stands on the chest's floor
+        assertEquals(-MimicShape.HALF, corners(chest).minOf { it.y }, 1e-6f)
+        assertEquals(0f, corners(chest).map { it.x }.average().toFloat(), 1e-6f)
+
+        for (piece in plan.bodyModel.pieces - chest) {
             val points = corners(piece)
             if (MimicShape.TONGUE in piece.tags) {
-                // collapsed into the seam between lid and base
+                // collapsed into the floor of the mouth
                 for (point in points) assertTrue(point.distance(MimicShape.TONGUE_ROOT) < .01f, "tongue shows at $point")
                 continue
             }
+            // teeth, gullet and palate all sit inside the solid shut chest
             for (point in points) {
-                // the latch stands 1 px proud of the front, like vanilla's
-                assertTrue(point.x in -MimicShape.HALF - px..MimicShape.HALF + px, "${piece.block.material} x=${point.x}")
-                assertTrue(point.z in -MimicShape.HALF - px..MimicShape.HALF + px, "${piece.block.material} z=${point.z}")
-                assertTrue(point.y in -MimicShape.HALF - .1f * px..MimicShape.HALF + .1f * px, "${piece.block.material} y=${point.y}")
-            }
-            // teeth and gullet sit wholly inside the closed box
-            if (piece.block.material == Material.BONE_BLOCK || piece.block.material == Material.BLACK_CONCRETE) {
-                for (point in points) assertTrue(kotlin.math.abs(point.x) < MimicShape.HALF && kotlin.math.abs(point.z) < MimicShape.HALF,
+                assertTrue(kotlin.math.abs(point.x) < MimicShape.HALF && kotlin.math.abs(point.z) < MimicShape.HALF,
                     "${piece.block.material} pokes out at $point")
+                assertTrue(point.y in -MimicShape.HALF..MimicShape.HALF, "${piece.block.material} y=${point.y}")
             }
         }
     }
 
     @Test
-    fun `opening raises the latch and pushes the tongue over the lip`() {
+    fun `opening lifts the chest lid with its teeth and pushes the tongue over the lip`() {
         val plan = mimicBodyPlan()
-        val latch = plan.bodyModel.pieces.single { it.block.material == Material.SMOOTH_STONE }
+        val chest = plan.bodyModel.pieces.single { MimicShape.CHEST in it.tags }
+        // the front row, furthest from the hinge
+        val upperTeeth = plan.bodyModel.pieces.filter {
+            MimicShape.LID in it.tags && it.block.material == Material.BONE_BLOCK && corners(it).minOf { c -> c.z } > 4 * px
+        }
         val tongue = plan.bodyModel.pieces.filter { MimicShape.TONGUE in it.tags }
         val pose = MimicPose(plan.bodyModel)
 
         pose.apply(0f, 0f, 0f)
-        val shutLatch = corners(latch).minOf { it.y }
+        val shut = upperTeeth.flatMap(::corners).minOf { it.y }
+        assertEquals(5, upperTeeth.size)
         pose.apply(60f.toRadians(), 1f, 0f)
-        assertTrue(corners(latch).minOf { it.y } > shutLatch + .5f, "lid did not swing up")
+        // 60° of the vanilla lid's 90°, to the nearest of the pack's steps
+        assertEquals(60f / 90f, chest.itemModelData, .5f / MimicShape.OPENNESS_STEPS)
+        assertTrue(upperTeeth.flatMap(::corners).minOf { it.y } > shut + .3f, "teeth did not lift with the lid")
         assertTrue(tongue.flatMap(::corners).maxOf { it.z } > MimicShape.HALF + px, "tongue stays in the mouth")
 
         // shutting again restores the exact chest pose
         pose.apply(0f, 0f, 0f)
-        assertEquals(shutLatch, corners(latch).minOf { it.y }, 1e-5f)
+        assertEquals(0f, chest.itemModelData)
+        assertEquals(shut, upperTeeth.flatMap(::corners).minOf { it.y }, 1e-5f)
+    }
+
+    @Test
+    fun `legs are cut from the chest's wood`() {
+        val wood = mimicBodyPlan().legs.flatMap { leg -> leg.segments.flatMap { it.model.pieces } }
+            .filter { it.itemModel != null }
+        assertTrue(wood.isNotEmpty() && wood.all { it.itemModel == MimicShape.WOOD_MODEL })
     }
 
     @Test

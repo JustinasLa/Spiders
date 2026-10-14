@@ -10,15 +10,19 @@ import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
 import com.heledron.spideranimation.utilities.DisplayModel
 import com.heledron.spideranimation.utilities.maths.toRadians
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.Sound
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import kotlin.math.PI
+import kotlin.math.roundToInt
 
 /**
- * A chest on four long legs. Asleep it is a real chest block; awake it is this display model,
- * built to the vanilla chest's 14×14×14 px footprint so the swap lines up.
+ * A chest on four long legs. Asleep it is a real chest block; awake it is the vanilla chest model
+ * itself, drawn from the `tfmc_spiders` resource pack (the vanilla `minecraft:chest` special model at
+ * a chosen lid openness), so the two look the same.
  */
 object MimicShape {
     const val PX = 1f / 16
@@ -29,13 +33,22 @@ object MimicShape {
     const val STANDING_HEIGHT = 1.15
     const val GALLOP_HEIGHT = 1.35
 
-    /** Top of the base, where the lid closes: 9 px up, as on the vanilla chest. */
+    /** Underside of the vanilla lid (9 px up); it overlaps the base's top by 1 px. */
     const val SEAM = 2 * PX
-    /** The lid swings up about its back top edge. */
+    /** Top of the vanilla chest's base (10 px up): the floor of the mouth. */
+    const val MOUTH = 3 * PX
+    /** The lid swings up about its back bottom edge, as the vanilla lid does. */
     val HINGE = Vector3f(0f, SEAM, -HALF)
-    val TONGUE_ROOT = Vector3f(0f, SEAM, -3 * PX)
+    val TONGUE_ROOT = Vector3f(0f, MOUTH, -3 * PX)
+
+    /** Resource-pack item models: the vanilla chest by openness, and a cube of its plank texture. */
+    val CHEST_MODEL = NamespacedKey("tfmc_spiders", "mimic_chest")
+    val WOOD_MODEL = NamespacedKey("tfmc_spiders", "mimic_wood")
+    /** The pack's chest model comes in this many openness steps (0 to 90°). */
+    const val OPENNESS_STEPS = 40
 
     const val LID = "lid"
+    const val CHEST = "chest"
     const val TONGUE = "tongue"
 
     val MAX_LID_ANGLE = 80f.toRadians()
@@ -91,20 +104,22 @@ private fun mimicLegSegments(): List<SegmentPlan> {
     }
 }
 
-/** Pale, sinewy limbs that taper to a black claw. */
+/** Wooden limbs cut from the chest's own planks, with black iron-bound knuckles like its frame. */
 private fun mimicLegModel(index: Int, length: Float): DisplayModel {
-    val thickness = listOf(.15f, .11f, .075f)[index]
+    val thickness = listOf(.15f, .11f, .08f)[index]
     val parts = mutableListOf<BlockDisplayModelPiece>()
-    for (section in 0..2) {
-        val width = thickness * (1f - section * .22f)
-        parts += box(Material.WHITE_TERRACOTTA, -width / 2, -width / 2, length * section / 3,
-            width, width, length / 3 + .012f)
+    for (section in 0..1) {
+        val width = thickness * (1f - section * .18f)
+        parts += wood(-width / 2, -width / 2, length * section / 2, width, width, length / 2 + .012f)
     }
-    // Knuckles darken where the segments meet.
-    parts += box(Material.BROWN_TERRACOTTA, -thickness * .6f, -thickness * .6f, -thickness * .3f,
-        thickness * 1.2f, thickness * 1.2f, thickness * .9f)
-    if (index == 2) parts += link(Material.BLACK_CONCRETE, Vector3f(0f, 0f, length * .82f),
-        Vector3f(0f, -.03f, length + .06f), .05f, .04f)
+    // Knuckles bound in black where the segments meet, pinned like the latch.
+    parts += box(Material.BLACK_TERRACOTTA, -thickness * .62f, -thickness * .62f, -thickness * .3f,
+        thickness * 1.24f, thickness * 1.24f, thickness * .9f)
+    parts += box(Material.SMOOTH_STONE, -thickness * .7f, -thickness * .2f, -thickness * .05f,
+        thickness * 1.4f, thickness * .4f, thickness * .4f)
+    // A black-capped wooden foot.
+    if (index == 2) parts += box(Material.BLACK_TERRACOTTA, -thickness * .55f, -thickness * .55f, length - .02f,
+        thickness * 1.1f, thickness * 1.1f, .05f)
     return DisplayModel(parts)
 }
 
@@ -112,62 +127,43 @@ internal fun mimicChestModel(): DisplayModel {
     val px = MimicShape.PX
     val half = MimicShape.HALF
     val seam = MimicShape.SEAM
-    // Closest block to the chest texture's orange-brown wood; planks are too pale.
-    val wood = Material.YELLOW_TERRACOTTA
+    val mouth = MimicShape.MOUTH
     val parts = mutableListOf<BlockDisplayModelPiece>()
 
-    // Base: wooden box framed in black like the vanilla chest, with a black gullet under the lid.
-    parts += box(wood, -half, -half, -half, half * 2, half + seam, half * 2)
-    parts += outline(-half, seam)
-    parts += box(Material.BLACK_CONCRETE, -half + px, seam, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px)
+    // The vanilla chest. Item models fill the unit cube, and the chest sits on its floor, 1 px below ours.
+    parts += BlockDisplayModelPiece(
+        block = Material.CHEST.createBlockData(),
+        transform = Matrix4f().translation(-.5f, -half, -.5f),
+        tags = listOf(MimicShape.CHEST),
+        itemModel = MimicShape.CHEST_MODEL,
+    )
 
-    // Lower teeth point up from the rim; when the lid is shut they sit inside it.
-    for (tooth in teeth()) parts += box(Material.BONE_BLOCK, tooth.x - .6f * px, seam, tooth.z - .6f * px,
+    // A black gullet on the floor of the mouth, and lower teeth that hide inside the shut lid.
+    parts += box(Material.BLACK_CONCRETE, -half + px, mouth, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px)
+    for (tooth in teeth()) parts += box(Material.BONE_BLOCK, tooth.x - .6f * px, mouth, tooth.z - .6f * px,
         1.2f * px, 1.7f * px, 1.2f * px)
 
-    // Lid: the chest top, its frame, latch and the upper teeth all swing together.
-    // Its bottom edge and the base's top edge make the dark band across the front.
+    // The lid's black palate and upper teeth swing with the chest's own lid.
     val lid = mutableListOf<BlockDisplayModelPiece>()
-    lid += box(wood, -half, seam, -half, half * 2, half - seam, half * 2)
-    lid += outline(seam, half)
     lid += box(Material.BLACK_CONCRETE, -half + px, seam - .05f * px, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px)
-    lid += box(Material.SMOOTH_STONE, -px, seam - 2 * px, half, 2 * px, 4 * px, px)
     for (tooth in teeth(offset = .5f)) lid += box(Material.BONE_BLOCK, tooth.x - .6f * px, seam - 1.7f * px, tooth.z - .6f * px,
         1.2f * px, 1.7f * px, 1.2f * px)
     lid.forEach { it.tags = listOf(MimicShape.LID) }
     parts += lid
 
     // Tongue: lies in the gullet and slides out over the front lip as the lid opens.
-    parts += box(Material.NETHER_WART_BLOCK, -2 * px, seam + .05f * px, -3 * px, 4 * px, 1.2f * px, 12 * px,
+    parts += box(Material.NETHER_WART_BLOCK, -2 * px, mouth + .05f * px, -3 * px, 4 * px, 1.2f * px, 12 * px,
         listOf(MimicShape.TONGUE))
-    parts += link(Material.NETHER_WART_BLOCK, Vector3f(0f, seam + .6f * px, 9 * px),
-        Vector3f(0f, seam - 3.5f * px, 10.5f * px), 3.4f * px, 1.1f * px, listOf(MimicShape.TONGUE))
+    parts += link(Material.NETHER_WART_BLOCK, Vector3f(0f, mouth + .6f * px, 9 * px),
+        Vector3f(0f, mouth - 3.5f * px, 10.5f * px), 3.4f * px, 1.1f * px, listOf(MimicShape.TONGUE))
 
     return DisplayModel(parts)
-}
-
-/** The vanilla chest's 1 px dark border along all twelve edges of a box from [minY] to [maxY], standing just proud of its faces. */
-private fun outline(minY: Float, maxY: Float): List<BlockDisplayModelPiece> {
-    val px = MimicShape.PX
-    val half = MimicShape.HALF
-    val proud = .03f * px
-    val edge = px + proud
-    val near = -half - proud
-    val far = half - px
-    val parts = mutableListOf<BlockDisplayModelPiece>()
-    for (a in listOf(near, far)) for (b in listOf(near, far)) {
-        // along x, along z (at the top and bottom of the box), and the upright corners
-        parts += box(Material.BLACK_TERRACOTTA, near, if (a == near) minY - proud else maxY - px, b, half * 2 + proud * 2, edge, edge)
-        parts += box(Material.BLACK_TERRACOTTA, b, if (a == near) minY - proud else maxY - px, near, edge, edge, half * 2 + proud * 2)
-        parts += box(Material.BLACK_TERRACOTTA, a, minY - proud, b, edge, maxY - minY + proud * 2, edge)
-    }
-    return parts
 }
 
 /** Points along the front and side rims where fangs grow; [offset] staggers the upper row. */
 private fun teeth(offset: Float = 0f): List<Vector3f> {
     val px = MimicShape.PX
-    // inside the black rim
+    // just inside the chest's rim
     val rim = MimicShape.HALF - 1.8f * px
     val points = mutableListOf<Vector3f>()
     for (i in 0..4) points += Vector3f((-4f + 2f * (i + offset)) * px, 0f, rim)
@@ -177,6 +173,7 @@ private fun teeth(offset: Float = 0f): List<Vector3f> {
 
 /** Swing the lid and slide the tongue. Base transforms are captured once in [MimicPose]. */
 class MimicPose(model: DisplayModel) {
+    private val chest = model.pieces.filter { MimicShape.CHEST in it.tags }
     private val lid = model.pieces.filter { MimicShape.LID in it.tags }.map { it to Matrix4f(it.transform) }
     private val tongue = model.pieces.filter { MimicShape.TONGUE in it.tags }.map { it to Matrix4f(it.transform) }
 
@@ -186,8 +183,14 @@ class MimicPose(model: DisplayModel) {
      * @param sway side-to-side tongue swing in radians.
      */
     fun apply(lidAngle: Float, tongueOut: Float, sway: Float) {
+        // the chest model only comes in fixed steps, so the teeth snap to the same angle
+        val openness = (lidAngle / (PI.toFloat() / 2)).coerceIn(0f, 1f)
+        val step = (openness * MimicShape.OPENNESS_STEPS).roundToInt()
+        for (piece in chest) piece.itemModelData = step.toFloat() / MimicShape.OPENNESS_STEPS
+        val angle = step * (PI.toFloat() / 2) / MimicShape.OPENNESS_STEPS
+
         val hinge = MimicShape.HINGE
-        val lidTransform = Matrix4f().translate(hinge).rotateX(-lidAngle).translate(Vector3f(hinge).negate())
+        val lidTransform = Matrix4f().translate(hinge).rotateX(-angle).translate(Vector3f(hinge).negate())
         for ((piece, base) in lid) piece.transform.set(lidTransform).mul(base)
 
         val root = MimicShape.TONGUE_ROOT
@@ -207,6 +210,10 @@ private fun link(
         .rotate(Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), direction.normalize()))
         .translate(-width / 2, -thickness / 2, 0f).scale(width, thickness, length), tags = tags)
 }
+
+/** A box of the chest's plank texture. */
+private fun wood(x: Float, y: Float, z: Float, width: Float, height: Float, depth: Float) =
+    box(Material.STRIPPED_OAK_WOOD, x, y, z, width, height, depth).apply { itemModel = MimicShape.WOOD_MODEL }
 
 private fun box(
     material: Material, x: Float, y: Float, z: Float, width: Float, height: Float, depth: Float,

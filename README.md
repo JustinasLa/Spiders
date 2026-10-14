@@ -121,13 +121,15 @@ Existing seals containing a clockwork Cinderweaver automatically receive the
 organic appearance and sounds while keeping their scale and edited leg rig.
 Take fresh tools from `/spider tools` for the new names and item appearances.
 
-All visuals are vanilla display entities. **No resource pack, client mod or other
-plugin is required or modified.** Spiders are temporary test entities: removing
+All visuals are vanilla display entities. **Cinderweavers need no resource pack,
+client mod or other plugin.** Mimics draw the vanilla chest and its wood through the
+small item-model pack in [`resourcepack/`](resourcepack/README.md); install it with
+ItemsAdder (or any server pack) or awake mimics show as missing models. Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
 Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.13.jar`** shaded
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.14.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
