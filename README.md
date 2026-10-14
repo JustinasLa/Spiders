@@ -86,6 +86,20 @@ blocks at their true colour, lit like the world around them. The old dimmed
 matching, which looks washed out with bright gamma, is still available with
 `/spider options spider_options.cloak.allowCustomBrightness set true`.
 
+**Mimic.** `/spider mimic place` (or `/spider spawn mimic`) puts a dormant mimic
+on the floor you aim at, facing you: a real chest block, so it looks exactly like
+one and stays put through restarts. Anyone who right-clicks or hits it wakes it.
+The chest bursts open, rises on four long legs, turns on whoever woke it and chases
+them for about eight seconds, snapping its lid and lolling its tongue. Anything
+hoppered or stuffed inside is spat out. After 20 idle seconds it walks onto the
+nearest free block, squares up and sits back down as a chest. It can't be opened,
+emptied by hoppers or blown up, and only staff can break it (in creative mode, to
+remove it). `/spider mimic wake` and `/spider mimic sleep` do the same by command;
+console uses `/spider mimic place|wake at <world> <x> <y> <z>`. Awake mimics count
+towards the six-creature limit and take the usual staff steering, gait and pounce
+commands; they stay chest-sized and don't climb. A mimic that is awake when the
+server stops drops back into a chest where it stands.
+
 Commands that act on one spider use the spider linked to the Summoning Seal in
 your hand, otherwise the nearest spider in your world.
 
@@ -108,8 +122,8 @@ plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission, model, climbing, pounce, hit and shroud tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.11.jar`** shaded
+Build and run the permission, model, climbing, pounce, hit, shroud and mimic tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.12.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.
