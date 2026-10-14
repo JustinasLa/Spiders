@@ -6,6 +6,7 @@ import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.MiscellaneousOptions
 import com.heledron.spideranimation.SpiderAnimationPlugin
 import com.heledron.spideranimation.StaffAccess
+import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.Pounce
 import com.heledron.spideranimation.spider.components.stopPounce
@@ -53,13 +54,14 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
     Commands.literal("spider")
         .requires { StaffAccess.canUse(it.sender) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
+            ctx.source.sender.sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|0.25–2.5>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
         .then(scaleCommand(afterChange))
         .then(gaitCommand())
         .then(climbCommand())
+        .then(shroudCommand())
         .then(speedCommand())
         .then(pounceCommand())
         .then(splayCommand())
@@ -331,6 +333,20 @@ private fun pounceCommand(): LiteralArgumentBuilder<CommandSourceStack> {
 }
 
 private const val MAX_POUNCE_DISTANCE = 96.0
+
+private fun shroudCommand(): LiteralArgumentBuilder<CommandSourceStack> {
+    fun setShroud(ctx: CommandContext<CommandSourceStack>, on: Boolean): Int {
+        val entity = requireTargetSpider(ctx.source)
+        val cloak = entity.query<Cloak>() ?: throw commandError("No spider found")
+        if (cloak.active != on) cloak.toggleCloak(AppState.ecs, entity)
+        ctx.source.sender.sendPlainMessage(if (on) "Shroud on" else "Shroud off")
+        return SUCCESS
+    }
+
+    return Commands.literal("shroud")
+        .then(Commands.literal("on").executes { ctx -> setShroud(ctx, true) })
+        .then(Commands.literal("off").executes { ctx -> setShroud(ctx, false) })
+}
 
 private fun climbCommand(): LiteralArgumentBuilder<CommandSourceStack> {
     fun setClimbing(ctx: CommandContext<CommandSourceStack>, climbing: Boolean): Int {

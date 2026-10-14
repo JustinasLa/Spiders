@@ -67,6 +67,19 @@ along its wall or ceiling and drops onto a player below. The leap can be tuned
 with `/spider options spider_options.pounce.leapRange|leapBoost|leapLift|giveUpTicks`.
 Pounces are animation only: they do not damage anyone.
 
+**Arrows and tridents.** Arrows, spectral arrows and tridents strike the
+spider's actual body and legs and bounce off. A staff member's hit pushes the
+spider (a trident more than an arrow) and breaks its shroud; other players'
+projectiles only glance off. Projectiles pass through the hidden saddle seat.
+A rider's own shots pass through their mount.
+
+**Shroud Charm.** The charm or `/spider shroud on|off` shrouds the targeted spider. The shroud copies whatever lies behind each part of the
+spider as seen by the nearest player within 48 blocks (spectators excluded),
+including water and lava surfaces. With nobody near, it copies the ground below. It uses
+blocks at their true colour, lit like the world around them. The old dimmed
+matching, which looks washed out with bright gamma, is still available with
+`/spider options spider_options.cloak.allowCustomBrightness set true`.
+
 Commands that act on one spider use the spider linked to the Summoning Seal in
 your hand, otherwise the nearest spider in your world.
 
@@ -89,8 +102,8 @@ plugin is required or modified.** Spiders are temporary test entities: removing
 them or stopping the server cleans up their displays and seats. They do not
 survive a restart. The renderer uses its own `tfmc_spider_render` entity tag.
 
-Build and run the permission, model, climbing and pounce simulation tests with `./gradlew build` (`gradlew.bat build`
-on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.8.jar`** shaded
+Build and run the permission, model, climbing, pounce, projectile and shroud tests with `./gradlew build` (`gradlew.bat build`
+on Windows), using JDK 21. Install the **`tfmc-spiders-4.0.0-tfmc.10.jar`** shaded
 artifact; the `*-plain.jar` is not the deployable plugin. Restart the test server
 to load it. This is experimental multiplayer software; test movement and client
 performance with a few spiders before increasing any limits.

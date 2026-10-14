@@ -39,10 +39,11 @@ fun splay(spiderEntity: ECSEntity) {
     val options = spiderEntity.query<SpiderOptions>() ?: return
     spiderEntity.remove()
 
-    // detach and get entities
+    // detach and get this spider's entities (render ids nest as pairs rooted at the spider)
+    fun root(id: Any?): Any? = if (id is Pair<*, *>) root(id.first) else id
     val entities = mutableListOf<BlockDisplay>()
     for ((id, entity) in RenderEntityTracker.getAll()) {
-        if (entity !is BlockDisplay) continue
+        if (entity !is BlockDisplay || root(id) !== spider) continue
         entities += entity
         RenderEntityTracker.detach(id)
     }

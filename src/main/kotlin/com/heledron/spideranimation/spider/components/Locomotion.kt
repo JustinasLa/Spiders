@@ -62,14 +62,14 @@ class Locomotion : ECSComponent {
 fun setupLocomotion(app: ECS) {
     app.onPostTick {
         for ((entity, spider, options, locomotion) in app.query<ECSEntity, SpiderBody, SpiderOptions, Locomotion>()) {
-            val tridentDetector = entity.query<TridentHitDetector>()
+            val hitDetector = entity.query<ProjectileHitDetector>()
 
             val targetVelocity = Vector(0.0, 0.0, 0.0)
             locomotion.walkVelocity?.let { targetVelocity.add(it) }
             locomotion.pushVelocity?.let { targetVelocity.add(it) }
 
             // no steering mid-air
-            if (spider.leapTicks == 0) spider.walkAt(targetVelocity, tridentDetector, options.gait)
+            if (spider.leapTicks == 0) spider.walkAt(targetVelocity, hitDetector, options.gait)
 
             spider.rotateTowards(locomotion.faceDirection ?: FORWARD_VECTOR.rotate(spider.preferredOrientation), options.gait)
 
@@ -114,7 +114,7 @@ private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
     rotationalVelocity.moveTowards(desiredOmega, maxAcceleration)
 }
 
-private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?, gait: Gait) {
+private fun SpiderBody.walkAt(targetVelocity: Vector, hitDetector: ProjectileHitDetector?, gait: Gait) {
     val acceleration = gait.moveAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
 
     // preserve up motion, steer only within the perpendicular plane
@@ -136,5 +136,5 @@ private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHi
         isWalking = motion.lengthSquared() > 1e-8
     }
 
-    if (tridentDetector != null && tridentDetector.stunned && targetVelocity.isZero) isWalking = false
+    if (hitDetector != null && hitDetector.stunned && targetVelocity.isZero) isWalking = false
 }

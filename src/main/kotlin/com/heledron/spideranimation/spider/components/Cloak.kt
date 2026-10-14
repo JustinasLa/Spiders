@@ -11,7 +11,6 @@ import com.heledron.spideranimation.utilities.block_colors.getBlockColor
 import com.heledron.spideranimation.utilities.colors.Oklab
 import com.heledron.spideranimation.utilities.colors.distanceTo
 import com.heledron.spideranimation.utilities.colors.toOklab
-import com.heledron.spideranimation.utilities.raycastGround
 import com.heledron.spideranimation.utilities.events.SeriesScheduler
 import com.heledron.spideranimation.utilities.events.runLater
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
@@ -47,22 +46,13 @@ class Cloak : ECSComponent {
 
         val cloakColor = cloakColor[id] ?: return originalBlock to originalBrightness
         val match = findBlockWithColor(cloakColor.toRGB(), options.allowCustomBrightness)
+        // a full-colour match is lit by the world like the blocks it imitates
+        if (!options.allowCustomBrightness) return match.block to null
         return match.block to Display.Brightness(0, match.brightness)
     }
 
     private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int, options: CloakOptions) {
         if (cloakGlitching) return
-
-        fun groundCast(): RayTraceResult? {
-            return world.raycastGround(position, DOWN_VECTOR, 5.0)
-        }
-
-        fun cast(): RayTraceResult? {
-            val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull() ?: return groundCast()
-
-            val direction = position.clone().subtract(targetPlayer.eyePosition)
-            return world.raycastGround(position, direction, 30.0)
-        }
 
         val originalColor = getBlockColor(originalBlock, originalBrightness)?.toOklab() ?: return
         val currentColor = cloakColor[id] ?: originalColor
@@ -70,8 +60,7 @@ class Cloak : ECSComponent {
         val targetColor = run getTargetColor@{
             if (!active) return@getTargetColor originalColor
 
-            val rayTrace = cast() ?: return@getTargetColor currentColor
-            val block = rayTrace.hitBlock?.blockData ?: return@getTargetColor currentColor
+            val block = shroudSees(world, position) ?: return@getTargetColor currentColor
             val lightLevel = 15
             getBlockColor(block, lightLevel)?.toOklab() ?: currentColor
         }
@@ -148,6 +137,9 @@ class Cloak : ECSComponent {
     }
 }
 
+/** Players further than this from a piece do not steer the shroud; it copies the ground instead. */
+private const val VIEWER_RANGE = 48.0
+
 private fun Oklab.moveTowards(target: Oklab, maxDelta: Float): Oklab {
     val delta = this.distanceTo(target)
     if (delta <= maxDelta) return target
@@ -156,7 +148,8 @@ private fun Oklab.moveTowards(target: Oklab, maxDelta: Float): Oklab {
 }
 
 fun setupCloak(app: ECS) {
-    app.onEvent<TridentHitEvent> { event ->
+    app.onEvent<SpiderProjectileHitEvent> { event ->
+        if (!event.forceful) return@onEvent
         val cloak = event.entity.query<Cloak>() ?: return@onEvent
         if (cloak.active) {
             val options = event.entity.query<SpiderOptions>()?.cloak ?: return@onEvent
@@ -166,3 +159,24 @@ fun setupCloak(app: ECS) {
         cloak.active = false
     }
 }
+/**
+ * The block a shroud piece at [position] imitates: what lies behind it as seen by the nearest player
+ * in this world, or the ground beneath when nobody is close. Water and lava surfaces count.
+ */
+internal fun shroudSees(world: World, position: Vector): BlockData? {
+    fun surfaceCast(direction: Vector, distance: Double): RayTraceResult? =
+        world.rayTraceBlocks(position.toLocation(world), direction, distance, FluidCollisionMode.ALWAYS, true)
+
+    val viewer = world.players
+        .filter { it.gameMode != GameMode.SPECTATOR }
+        .minByOrNull { it.eyePosition.distanceSquared(position) }
+        ?.takeIf { it.eyePosition.distanceSquared(position) < VIEWER_RANGE * VIEWER_RANGE }
+    val direction = viewer?.let { position.clone().subtract(it.eyePosition) }
+
+    val hit = if (direction == null || direction.lengthSquared() < 1e-8) surfaceCast(DOWN_VECTOR, GROUND_RANGE)
+    else surfaceCast(direction, BEHIND_RANGE)
+    return hit?.hitBlock?.blockData
+}
+
+private const val GROUND_RANGE = 5.0
+private const val BEHIND_RANGE = 30.0
