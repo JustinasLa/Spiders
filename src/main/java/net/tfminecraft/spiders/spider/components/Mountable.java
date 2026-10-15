@@ -148,6 +148,8 @@ public class Mountable implements ECSComponent {
                         it.setCollidable(false);
                     },
                     it -> {
+                        // a saddle would draw on the invisible pig and give the rider away
+                        if (it.hasSaddle()) it.setSaddle(false);
                         mountable.setCurrentPig(it);
                     }
                 ).submit(new Pair<>(spider, "mountable.pig"));

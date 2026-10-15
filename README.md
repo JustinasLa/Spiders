@@ -14,7 +14,7 @@ Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a
 - **Pounce** — a spider gallops at a player or a spot and leaps the last few blocks onto it.
 - **Mimics** — a dormant chest that wakes when touched, screeches, rises on four legs and gallops away to hide somewhere else.
 - **Staff tools** — a menu of seals, guides, whistles, charms and debug tools to place, direct and inspect spiders.
-- **Riding** — staff can saddle a spider and drive it, including along walls and ceilings.
+- **Riding** — staff right-click a spider to ride and drive it, including along walls and ceilings. No saddle shows, so a vanished rider leaves nothing visible.
 - **Getting hit** — arrows, tridents, snowballs, eggs, wind charges and melee swings strike the spider's body and push it.
 - **Shroud** — a spider can copy the blocks behind it, as seen by the nearest player, and hide in plain sight.
 - **Vanilla rendering** — spiders are drawn with vanilla display entities and need no resource pack or client mod; awake mimics use a small item-model pack in [`resourcepack/`](resourcepack/README.md).

@@ -3,7 +3,6 @@ package net.tfminecraft.spiders.spider.components;
 import net.tfminecraft.spiders.StaffAccess;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -30,12 +29,13 @@ public class StaffMountListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            if (event.getHand() != EquipmentSlot.HAND) return;
-            Pig pig = mountable.getCurrentPig();
-            if (pig == null) return;
-            if (event.getPlayer().isSneaking() && event.getPlayer().getInventory().getItemInMainHand().getType().isAir() && mountable.getRider() == null) {
-                pig.setSaddle(false);
-            }
+            // no saddle: it would show on the invisible pig, so staff are seated directly (sneak to skip)
+            event.setCancelled(true);
+            if (event.getHand() != EquipmentSlot.HAND || event.getPlayer().isSneaking()) return;
+            ArmorStand marker = mountable.getCurrentMarker();
+            if (marker == null || mountable.getRider() != null) return;
+            marker.addPassenger(event.getPlayer());
+            return;
         }
     }
 
