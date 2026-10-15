@@ -13,6 +13,7 @@ import net.tfminecraft.spiders.AppState;
 import net.tfminecraft.spiders.spider.components.Mimic;
 import net.tfminecraft.spiders.spider.components.MimicChests;
 import net.tfminecraft.spiders.spider.components.MimicState;
+import net.tfminecraft.spiders.spider.components.MimicTerror;
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.utilities.Geometry;
 import net.tfminecraft.spiders.utilities.Pair;
@@ -37,9 +38,15 @@ public final class MimicCommands {
     public static LiteralArgumentBuilder<CommandSourceStack> mimicCommand() {
         return Commands.literal("mimic")
             .executes(ctx -> {
-                ctx.getSource().getSender().sendPlainMessage("Mimic: /spider mimic place, wake, sleep. Anyone who right-clicks or hits a dormant mimic wakes it.");
+                ctx.getSource().getSender().sendPlainMessage("Mimic: /spider mimic place, wake, sleep, scare. Anyone who right-clicks or hits a dormant mimic wakes it.");
                 return 1;
             })
+            .then(Commands.literal("scare").executes(ctx -> {
+                // preview the jump scare a waker sees, to check the resource pack
+                if (!(ctx.getSource().getSender() instanceof Player player)) throw error("Only players can see the jump scare.");
+                MimicTerror.jumpScare(player);
+                return 1;
+            }))
             .then(Commands.literal("place")
                 .executes(ctx -> placeAimed(ctx))
                 .then(atBlock((ctx, block) -> place(ctx, block, BlockFace.SOUTH))))

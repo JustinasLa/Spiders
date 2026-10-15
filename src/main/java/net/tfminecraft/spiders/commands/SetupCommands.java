@@ -76,7 +76,7 @@ public final class SetupCommands {
         return Commands.literal("spider")
             .requires(source -> StaffAccess.canUse(source.getSender()))
             .executes(ctx -> {
-                ctx.getSource().getSender().sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|mimic|0.25–2.5>, mimic <place|wake|sleep>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options");
+                ctx.getSource().getSender().sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|mimic|0.25–2.5>, mimic <place|wake|sleep|scare>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options");
                 return SUCCESS;
             })
             .then(optionsCommand(afterChange))

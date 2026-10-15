@@ -1,0 +1,161 @@
+{
+  "mimic.screech": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.screech",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/screech1",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "tfmc_spiders:mimic/screech2",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "tfmc_spiders:mimic/screech3",
+        "attenuation_distance": 64
+      }
+    ]
+  },
+  "mimic.shriek": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.shriek",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/shriek1",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "tfmc_spiders:mimic/shriek2",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "tfmc_spiders:mimic/shriek3",
+        "attenuation_distance": 48
+      }
+    ]
+  },
+  "mimic.stinger": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.stinger",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/stinger",
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "mimic.chomp": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.chomp",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/chomp1",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "tfmc_spiders:mimic/chomp2",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "tfmc_spiders:mimic/chomp3",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "mimic.crack": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.crack",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/crack1",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "tfmc_spiders:mimic/crack2",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "tfmc_spiders:mimic/crack3",
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "mimic.breath": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.breath",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/breath1",
+        "attenuation_distance": 8
+      },
+      {
+        "name": "tfmc_spiders:mimic/breath2",
+        "attenuation_distance": 8
+      }
+    ]
+  },
+  "mimic.growl": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.growl",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/growl1",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "tfmc_spiders:mimic/growl2",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "mimic.heartbeat": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.heartbeat",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/heartbeat",
+        "attenuation_distance": 4
+      }
+    ]
+  },
+  "mimic.creak": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.creak",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/creak1",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "tfmc_spiders:mimic/creak2",
+        "attenuation_distance": 12
+      }
+    ]
+  },
+  "mimic.skitter": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.skitter",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/skitter1",
+        "attenuation_distance": 20
+      },
+      {
+        "name": "tfmc_spiders:mimic/skitter2",
+        "attenuation_distance": 20
+      },
+      {
+        "name": "tfmc_spiders:mimic/skitter3",
+        "attenuation_distance": 20
+      },
+      {
+        "name": "tfmc_spiders:mimic/skitter4",
+        "attenuation_distance": 20
+      }
+    ]
+  },
+  "mimic.gulp": {
+    "subtitle": "subtitles.tfmc_spiders.mimic.gulp",
+    "sounds": [
+      {
+        "name": "tfmc_spiders:mimic/gulp1",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "tfmc_spiders:mimic/gulp2",
+        "attenuation_distance": 12
+      }
+    ]
+  }
+}

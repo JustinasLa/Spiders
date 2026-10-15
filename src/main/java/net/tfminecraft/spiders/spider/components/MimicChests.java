@@ -8,12 +8,10 @@ import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.spider.presets.MimicShape;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Geometry;
-import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.maths.Maths;
 import net.tfminecraft.spiders.utilities.overloads.Overloads;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
@@ -77,41 +75,6 @@ public final class MimicChests {
         return true;
     }
 
-    private static final double SCREECH_RANGE = 80.0;
-    private static final long SECOND_SHRIEK_TICKS = 6L;
-    private static final List<Pair<Sound, Float>> SCREECH = List.of(
-        new Pair<>(Sound.ENTITY_FOX_SCREECH, .7f),
-        new Pair<>(Sound.ENTITY_GHAST_SCREAM, 1.6f),
-        new Pair<>(Sound.ENTITY_ENDERMAN_SCREAM, .8f),
-        new Pair<>(Sound.ENTITY_PHANTOM_DEATH, .6f)
-    );
-
-    /**
-     * A sound can't play louder than volume 1 (higher only widens its range), so the screech is
-     * layered, and each player within range also hears it at full volume from just beside them,
-     * towards the mimic, so it stays loud far off and still comes from the right direction.
-     */
-    private static void screech(World world, Vector centre, float pitch) {
-        Location location = centre.toLocation(world);
-        for (Pair<Sound, Float> entry : SCREECH) world.playSound(location, entry.first(), SoundCategory.HOSTILE, 5f, entry.second() * pitch);
-        for (Player player : world.getPlayers()) {
-            Vector ear = player.getEyeLocation().toVector();
-            Vector toMimic = centre.clone().subtract(ear);
-            double distance = toMimic.length();
-            if (distance > SCREECH_RANGE) continue;
-            Vector source = distance < 2 ? centre : ear.add(toMimic.multiply(2 / distance));
-            for (int i = 0; i < 2; i++) {
-                for (Pair<Sound, Float> entry : SCREECH) {
-                    player.playSound(source.toLocation(world), entry.first(), SoundCategory.HOSTILE, 1f, entry.second() * pitch);
-                }
-            }
-        }
-    }
-
-    private static void screech(World world, Vector centre) {
-        screech(world, centre, 1f);
-    }
-
     /** Free floor next to [position], nearest first: the cell it stands over, then its neighbours. */
     public static Block restCellNear(World world, Vector position) {
         RayTraceResult hit = Geometry.raycastGround(world, position, Maths.downVector(), 4.0);
@@ -134,6 +97,8 @@ public final class MimicChests {
         return null;
     }
 
+    private static final long SECOND_SHRIEK_TICKS = 6L;
+
     public static boolean wake(Block block, Player waker) {
         World world = block.getWorld();
         if (!(block.getState(false) instanceof Chest chest)) return false;
@@ -144,6 +109,8 @@ public final class MimicChests {
             return false;
         }
 
+        MimicLurk.forget(block);
+        if (chest.isOpen()) chest.close();
         BlockFace facing = block.getBlockData() instanceof Directional directional ? directional.getFacing() : BlockFace.SOUTH;
         List<ItemStack> loot = new ArrayList<>();
         for (ItemStack item : chest.getBlockInventory().getContents()) {
@@ -157,17 +124,25 @@ public final class MimicChests {
         if (AppState.spawnMimic(world, floor, facing.getDirection(), waker != null ? waker.getUniqueId() : null) == null) return false;
 
         Vector centre = floor.clone().add(new Vector(0.0, MimicShape.RESTING_HEIGHT, 0.0));
-        world.playSound(centre.toLocation(world), Sound.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 1.5f, .6f);
-        screech(world, centre);
-        // a second, higher shriek on its heels
-        Bukkit.getScheduler().runTaskLater(Core.getCurrentPlugin(), (Runnable) () -> screech(world, centre, 1.15f), SECOND_SHRIEK_TICKS);
-        world.spawnParticle(Particle.BLOCK, centre.toLocation(world), 24, .3, .3, .3, 0.0, blockData);
-
-        // Anything stuffed inside is spat out of its mouth.
-        Vector mouth = centre.clone().add(new Vector(0.0, .4, 0.0));
-        for (ItemStack item : loot) world.dropItem(mouth.toLocation(world), item, it -> {
-            it.setVelocity(facing.getDirection().multiply(.25).add(new Vector(ThreadLocalRandom.current().nextDouble(-.08, .08), .3, ThreadLocalRandom.current().nextDouble(-.08, .08))));
-        });
+        if (waker == null) {
+            // nobody to go after: it just screams and stands up
+            world.playSound(centre.toLocation(world), Sound.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 1.5f, .6f);
+            MimicTerror.screech(world, centre, 1f);
+            Bukkit.getScheduler().runTaskLater(Core.getCurrentPlugin(), (Runnable) () -> MimicTerror.screech(world, centre, 1.15f), SECOND_SHRIEK_TICKS);
+        } else {
+            // the lid only lifts a crack, as if it were any other chest; the screaming comes when it springs
+            world.playSound(centre.toLocation(world), Sound.BLOCK_CHEST_OPEN, SoundCategory.BLOCKS, .5f, .85f);
+        }
+        // Anything stuffed inside is spat out of its mouth: at once, or as it springs at whoever woke it.
+        Runnable spit = () -> {
+            world.spawnParticle(Particle.BLOCK, centre.toLocation(world), 24, .3, .3, .3, 0.0, blockData);
+            Vector mouth = centre.clone().add(new Vector(0.0, .4, 0.0));
+            for (ItemStack item : loot) world.dropItem(mouth.toLocation(world), item, it -> {
+                it.setVelocity(facing.getDirection().multiply(.25).add(new Vector(ThreadLocalRandom.current().nextDouble(-.08, .08), .3, ThreadLocalRandom.current().nextDouble(-.08, .08))));
+            });
+        };
+        if (waker == null) spit.run();
+        else Bukkit.getScheduler().runTaskLater(Core.getCurrentPlugin(), spit, Mimic.AMBUSH_TICKS);
         return true;
     }
 

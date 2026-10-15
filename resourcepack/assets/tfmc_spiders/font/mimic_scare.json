@@ -1,0 +1,31 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "tfmc_spiders:font/mimic_scare.png",
+      "height": 54,
+      "ascent": 24,
+      "chars": [
+        "\ue000"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "tfmc_spiders:font/mimic_scare.png",
+      "height": 76,
+      "ascent": 35,
+      "chars": [
+        "\ue001"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "tfmc_spiders:font/mimic_scare.png",
+      "height": 92,
+      "ascent": 43,
+      "chars": [
+        "\ue002"
+      ]
+    }
+  ]
+}
