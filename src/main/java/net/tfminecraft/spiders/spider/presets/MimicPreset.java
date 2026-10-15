@@ -12,6 +12,7 @@ import net.tfminecraft.spiders.utilities.inverse_kinematics.IKJoint3D;
 import net.tfminecraft.spiders.utilities.maths.Maths;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.entity.Display;
 import org.bukkit.util.Vector;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -122,16 +123,15 @@ public final class MimicPreset {
             MimicShape.getCHEST_MODEL()
         ));
 
-        // A black gullet on the floor of the mouth, and lower teeth that hide inside the shut lid.
+        // A black gullet on the floor of the mouth, and lower fangs that hide inside the shut lid.
         parts.add(box(Material.BLACK_CONCRETE, -half + px, mouth, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px));
-        for (Vector3f tooth : teeth()) parts.add(box(Material.BONE_BLOCK, tooth.x - .6f * px, mouth, tooth.z - .6f * px,
-            1.2f * px, 1.7f * px, 1.2f * px));
+        for (Fang fang : fangs(false)) parts.addAll(fang.pieces(mouth, 1f));
 
-        // The lid's black palate and upper teeth swing with the chest's own lid.
+        // The lid's black palate, its fangs, and a spider's cluster of glowing slit eyes that stare out when it gapes.
         List<BlockDisplayModelPiece> lid = new ArrayList<>();
         lid.add(box(Material.BLACK_CONCRETE, -half + px, seam - .05f * px, -half + px, half * 2 - 2 * px, .05f * px, half * 2 - 2 * px));
-        for (Vector3f tooth : teeth(.5f)) lid.add(box(Material.BONE_BLOCK, tooth.x - .6f * px, seam - 1.7f * px, tooth.z - .6f * px,
-            1.2f * px, 1.7f * px, 1.2f * px));
+        for (Fang fang : fangs(true)) lid.addAll(fang.pieces(seam - .05f * px, -1f));
+        for (float[] eye : EYES) lid.addAll(eye(eye[0] * px, seam - .05f * px, eye[1] * px, eye[2] * px, eye[3] > 0));
         for (BlockDisplayModelPiece it : lid) it.setTags(new ArrayList<>(List.of(MimicShape.LID)));
         parts.addAll(lid);
 
@@ -144,19 +144,68 @@ public final class MimicPreset {
         return new DisplayModel(parts);
     }
 
-    /** Points along the front and side rims where fangs grow; {@code offset} staggers the upper row. */
-    private static List<Vector3f> teeth(float offset) {
+    /** Palate eyes: x, z, width (px), and whether it has a slit pupil. */
+    private static final float[][] EYES = {
+        {-2.4f, 1.0f, 2.4f, 1}, {2.4f, 1.0f, 2.4f, 1},
+        {0f, -1.4f, 1.3f, 1},
+        {-4.1f, -.4f, 1f, 0}, {4.1f, -.4f, 1f, 0},
+        {-1.5f, -3.4f, .9f, 0}, {1.5f, -3.4f, .9f, 0},
+    };
+
+    /** A red eye that glows in the dark of the mouth, facing down from the palate, with a black slit. */
+    private static List<BlockDisplayModelPiece> eye(float x, float palate, float z, float width, boolean slit) {
+        float px = MimicShape.PX;
+        float depth = width * .66f;
+        List<BlockDisplayModelPiece> pieces = new ArrayList<>();
+        BlockDisplayModelPiece glow = box(Material.RED_CONCRETE, x - width / 2, palate - .12f * px, z - depth / 2, width, .12f * px, depth);
+        glow.setBrightness(new Display.Brightness(15, 15));
+        pieces.add(glow);
+        if (slit) pieces.add(box(Material.BLACK_CONCRETE, x - width * .09f, palate - .16f * px, z - depth * .45f, width * .18f, .04f * px, depth * .9f));
+        return pieces;
+    }
+
+    /** One fang: a broad bone root and a narrow tip, standing up from the jaw ({@code direction} 1) or hanging from it (-1). */
+    private record Fang(float x, float z, float width, float length) {
+        List<BlockDisplayModelPiece> pieces(float jaw, float direction) {
+            float root = length * .55f;
+            float tip = length - root;
+            float tipWidth = width * .55f;
+            return List.of(
+                box(Material.BONE_BLOCK, x - width / 2, direction > 0 ? jaw : jaw - root, z - width / 2, width, root, width),
+                box(Material.BONE_BLOCK, x - tipWidth / 2, direction > 0 ? jaw + root : jaw - length, z - tipWidth / 2, tipWidth, tip, tipWidth)
+            );
+        }
+    }
+
+    /**
+     * Uneven fangs along the front and side rims, a shorter row behind them, and long canines at the
+     * front corners. Lower fangs reach up into the shut lid and upper fangs down into the base, so the
+     * shut chest hides them all.
+     */
+    static List<Fang> fangs(boolean upper) {
         float px = MimicShape.PX;
         // just inside the chest's rim
         float rim = MimicShape.HALF - 1.8f * px;
-        List<Vector3f> points = new ArrayList<>();
-        for (int i = 0; i <= 4; i++) points.add(new Vector3f((-4f + 2f * (i + offset)) * px, 0f, rim));
-        for (float side : new float[]{-1f, 1f}) for (int i = 0; i <= 2; i++) points.add(new Vector3f(side * rim, 0f, (4f - 3f * (i + offset)) * px));
-        return points;
-    }
-
-    private static List<Vector3f> teeth() {
-        return teeth(0f);
+        float offset = upper ? .5f : 0f;
+        // a fixed seed: every mimic has the same crooked smile
+        java.util.Random random = new java.util.Random(upper ? 7 : 11);
+        float maxLength = (upper ? 4.4f : 3.5f) * px;
+        List<Fang> out = new ArrayList<>();
+        for (int i = 0; i <= 4; i++) {
+            float x = (-4f + 2f * (i + offset)) * px;
+            out.add(new Fang(x, rim, (1.1f + .3f * random.nextFloat()) * px, maxLength * (.5f + .45f * random.nextFloat())));
+        }
+        for (float side : new float[]{-1f, 1f}) for (int i = 0; i <= 2; i++) {
+            out.add(new Fang(side * rim, (4f - 3f * (i + offset)) * px, (1f + .3f * random.nextFloat()) * px, maxLength * (.45f + .45f * random.nextFloat())));
+        }
+        // the inner row
+        for (int i = 0; i <= 3; i++) {
+            float x = (-3f + 2f * (i + offset)) * px;
+            out.add(new Fang(x, rim - 1.6f * px, .8f * px, maxLength * (.3f + .25f * random.nextFloat())));
+        }
+        // canines
+        for (float side : new float[]{-1f, 1f}) out.add(new Fang(side * (rim - .2f * px), rim - .2f * px, 1.5f * px, maxLength));
+        return out;
     }
 
     private static BlockDisplayModelPiece link(

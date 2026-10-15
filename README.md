@@ -12,14 +12,14 @@ Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a
 - **Procedural walking and galloping** — legs plan their own steps over uneven ground; strides lengthen with speed.
 - **Walls and ceilings** — climbing spiders walk up walls, across ceilings and over ledges, and drop back to the floor on demand.
 - **Pounce** — a spider gallops at a player or a spot and leaps the last few blocks onto it.
-- **Mimics** — a dormant chest that wakes when touched, screeches, rises on four legs and gallops away to hide somewhere else.
+- **Mimics** — a dormant chest that breathes, turns to face you when you look away and peeks at you with red eyes. Touch it and it cracks its lid, springs at your face with a full-screen jump scare and a scream, unfolds on four cracking legs and hunts you for ten seconds, biting, while your heart pounds and the world goes dark. Then it stops, cocks its head at you, and gallops away to hide as another chest. Linger beside one and it takes you anyway.
 - **Staff tools** — a menu of seals, guides, whistles, charms and debug tools to place, direct and inspect spiders.
 - **Riding** — staff right-click a spider to ride and drive it, including along walls and ceilings. No saddle shows, so a vanished rider leaves nothing visible.
 - **Getting hit** — arrows, tridents, snowballs, eggs, wind charges and melee swings strike the spider's body and push it.
 - **Shroud** — a spider can copy the blocks behind it, as seen by the nearest player, and hide in plain sight.
-- **Vanilla rendering** — spiders are drawn with vanilla display entities and need no resource pack or client mod; awake mimics use a small item-model pack in [`resourcepack/`](resourcepack/README.md).
+- **Vanilla rendering** — spiders are drawn with vanilla display entities and need no resource pack or client mod; mimics use a small pack in [`resourcepack/`](resourcepack/README.md) for the chest model, their sounds and the jump scare.
 
-Spiders are staff-operated test entities: they have no health, loot or hostile AI, and they do not survive a restart. Dormant mimics are real chests and do.
+Spiders are staff-operated test entities: they have no health or loot, and they do not survive a restart. Dormant mimics are real chests and do. Awake mimics are the one hostile thing: they hunt whoever woke or hit them, but a bite never takes a player's last heart.
 
 ## Credits
 
