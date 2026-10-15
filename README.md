@@ -35,7 +35,7 @@ Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/
 
 ## Tests
 
-Run `mvn clean verify` with Java 21. Kotlin tests on JUnit 5 and Mockito cover
+Run `mvn clean verify` with Java 21. JUnit 5 and Mockito tests cover
 staff access, the staff tools, the Cinderweaver model, climbing, pouncing, hits,
 mounting, the shroud and mimics, running the spider simulation against mocked worlds.
 Surefire writes test results to `target/surefire-reports/`; the Build workflow
