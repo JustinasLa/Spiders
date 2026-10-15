@@ -8,6 +8,7 @@ import net.tfminecraft.spiders.spider.components.rendering.SpiderRenderer;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItems;
+import net.tfminecraft.spiders.utilities.custom_items.StaffToolMenu;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.events.Scheduler;
@@ -40,6 +41,7 @@ public class SpiderAnimationPlugin extends JavaPlugin {
         SetupCommands.setupCommands(this);
         SetupItems.setupItems();
         CustomItems.setupStaffTools();
+        StaffToolMenu.setupStaffToolMenu();
         SpiderSystems.setupSpider(ecs);
         LaserPoint.setupLaserPointer(ecs);
 

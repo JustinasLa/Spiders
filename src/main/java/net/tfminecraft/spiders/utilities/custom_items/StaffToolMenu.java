@@ -1,24 +1,23 @@
 package net.tfminecraft.spiders.utilities.custom_items;
 
-import io.papermc.paper.dialog.Dialog;
-import io.papermc.paper.registry.data.dialog.ActionButton;
-import io.papermc.paper.registry.data.dialog.DialogBase;
-import io.papermc.paper.registry.data.dialog.action.DialogAction;
-import io.papermc.paper.registry.data.dialog.action.DialogActionCallback;
-import io.papermc.paper.registry.data.dialog.body.DialogBody;
-import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.tfminecraft.spiders.StaffAccess;
+import net.tfminecraft.spiders.utilities.events.Events;
 import net.tfminecraft.spiders.utilities.overloads.Overloads;
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,80 +33,91 @@ public final class StaffToolMenu {
         return staffTools;
     }
 
-    private static final int MENU_WIDTH = 330;
-    private static final int COLUMNS = 3;
+    /** Lore lines wrap at about this many characters so tooltips stay narrow. */
+    private static final int LORE_WIDTH = 36;
 
-    /** Each menu lasts this long; staff reopen it with /spider tools. */
-    private static final ClickCallback.Options CALLBACKS = ClickCallback.Options.builder()
-        .uses(ClickCallback.UNLIMITED_USES)
-        .lifetime(Duration.ofMinutes(30))
-        .build();
+    /** Marks an open tools chest; the chest holds display copies, never real items. */
+    private static final class MenuHolder implements InventoryHolder {
+        private Inventory inventory;
 
-    /** A menu screen, not a container: one row per tool saying what it does, and a button to take each. */
-    public static void openStaffToolMenu(Player player) {
-        if (!StaffAccess.require(player)) return;
-        player.showDialog(staffToolMenu());
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
     }
 
-    private static Dialog staffToolMenu() {
-        List<DialogBody> body = new ArrayList<>();
-        body.add(
-            DialogBody.plainMessage(Component.text("Click a tool below to receive it. The menu stays open, so take as many as you need.",
-                NamedTextColor.GRAY), MENU_WIDTH)
-        );
-        for (StaffTool tool : staffTools) {
-            TextComponent description = Component.text()
-                .append(Component.text(tool.getName(), NamedTextColor.GOLD))
-                .append(Component.newline())
-                .append(Component.text(tool.getDoes(), NamedTextColor.WHITE))
-                .append(Component.newline())
-                .append(Component.text(tool.getUse(), NamedTextColor.GRAY))
-                .build();
-            body.add(DialogBody.item(tool.create())
-                .description(DialogBody.plainMessage(description, MENU_WIDTH - 40))
-                .showTooltip(true)
-                .build());
-        }
+    /** A chest of every tool; clicking one puts a fresh copy in the clicker's first free hotbar slot. The menu stays open. */
+    public static void openStaffToolMenu(Player player) {
+        if (!StaffAccess.require(player)) return;
+        MenuHolder holder = new MenuHolder();
+        int size = Math.max(9, (staffTools.size() + 8) / 9 * 9);
+        Inventory inventory = Bukkit.createInventory(holder, size, Component.text("Cinderweaver • Staff Tools"));
+        holder.inventory = inventory;
+        for (int i = 0; i < staffTools.size(); i++) inventory.setItem(i, staffTools.get(i).create());
+        player.openInventory(inventory);
+    }
 
-        List<ActionButton> buttons = new ArrayList<>();
-        for (StaffTool tool : staffTools) {
-            DialogActionCallback callback = (response, audience) -> {
-                if (audience instanceof Player player) give(player, tool);
-            };
-            buttons.add(ActionButton.builder(Component.text().append(tool.icon()).append(Component.text(" " + shortName(tool.getName()))).build())
-                .tooltip(Component.text(tool.getDoes() + "\n" + tool.getUse()))
-                .width(MENU_WIDTH / COLUMNS - 4)
-                .action(DialogAction.customClick(callback, CALLBACKS))
-                .build());
-        }
-        ActionButton close = ActionButton.builder(Component.text("Done")).width(100).build();
+    public static void setupStaffToolMenu() {
+        Events.addEventListener(new Listener() {
+            @EventHandler
+            public void onClick(InventoryClickEvent event) {
+                if (!(event.getInventory().getHolder(false) instanceof MenuHolder)) return;
+                // nothing moves in or out of the menu, from either inventory
+                event.setCancelled(true);
+                if (!(event.getWhoClicked() instanceof Player player)) return;
+                if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+                int slot = event.getSlot();
+                if (slot < 0 || slot >= staffTools.size()) return;
+                give(player, staffTools.get(slot));
+            }
 
-        return Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Cinderweaver • Staff Tools"))
-                .canCloseWithEscape(true)
-                .pause(false)
-                // stay open after each click
-                .afterAction(DialogBase.DialogAfterAction.NONE)
-                .body(body)
-                .build())
-            .type(DialogType.multiAction(buttons, close, COLUMNS)));
+            @EventHandler
+            public void onDrag(InventoryDragEvent event) {
+                if (event.getInventory().getHolder(false) instanceof MenuHolder) event.setCancelled(true);
+            }
+        });
     }
 
     private static void give(Player player, StaffTool tool) {
-        if (!StaffAccess.require(player)) return;
-        Map<Integer, ItemStack> leftover = player.getInventory().addItem(tool.create());
-        for (ItemStack item : leftover.values()) player.getWorld().dropItem(player.getLocation(), item);
+        if (!StaffAccess.require(player)) {
+            player.closeInventory();
+            return;
+        }
+        // first empty hotbar slot, else anywhere in the inventory, else at their feet
+        PlayerInventory inventory = player.getInventory();
+        boolean placed = false;
+        for (int slot = 0; slot < 9 && !placed; slot++) {
+            ItemStack existing = inventory.getItem(slot);
+            if (existing == null || existing.isEmpty()) {
+                inventory.setItem(slot, tool.create());
+                placed = true;
+            }
+        }
+        if (!placed) {
+            Map<Integer, ItemStack> leftover = inventory.addItem(tool.create());
+            for (ItemStack item : leftover.values()) player.getWorld().dropItem(player.getLocation(), item);
+        }
         Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.ENTITY_ITEM_PICKUP, .5f, 1.2f);
         player.sendActionBar(Component.text("Received " + tool.getName(), NamedTextColor.GRAY));
     }
 
-    /** The part of a tool's name before any " — " explanation. */
-    private static String shortName(String name) {
-        int index = name.indexOf(" — ");
-        return index == -1 ? name : name.substring(0, index);
+    /** The text as lore lines of at most {@link #LORE_WIDTH} characters, broken between words. */
+    static List<Component> loreLines(String text, NamedTextColor color) {
+        List<Component> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            if (!line.isEmpty() && line.length() + 1 + word.length() > LORE_WIDTH) {
+                lines.add(loreLine(line.toString(), color));
+                line.setLength(0);
+            }
+            if (!line.isEmpty()) line.append(' ');
+            line.append(word);
+        }
+        if (!line.isEmpty()) lines.add(loreLine(line.toString(), color));
+        return lines;
     }
 
-    static Component loreLine(String text, NamedTextColor color) {
+    private static Component loreLine(String text, NamedTextColor color) {
         return Component.text(text, color).decoration(TextDecoration.ITALIC, false);
     }
 }

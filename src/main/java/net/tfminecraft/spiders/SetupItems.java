@@ -50,7 +50,7 @@ public final class SetupItems {
         ECS ecs = AppState.getEcs();
 
         CustomItemComponent spiderComponent = new CustomItemComponent("spider", Material.FERMENTED_SPIDER_EYE);
-        StaffToolMenu.getStaffTools().add(new StaffTool(spiderComponent, "Cinderweaver Summoning Seal", "item/fermented_spider_eye",
+        StaffToolMenu.getStaffTools().add(new StaffTool(spiderComponent, "Cinderweaver Summoning Seal",
             "Summons a Cinderweaver, then recalls it again.",
             "Right-click a floor, wall or ceiling to summon one there. Right-click again to recall it; the seal keeps its settings. Commands act on the spider linked to the seal in your hand."));
         spiderComponent.onGestureUse((player, item) -> {
@@ -96,7 +96,7 @@ public final class SetupItems {
 
 
         CustomItemComponent disableLegComponent = new CustomItemComponent("disableLeg", Material.RABBIT_HIDE);
-        StaffToolMenu.getStaffTools().add(new StaffTool(disableLegComponent, "Limb Binding Charm", "item/rabbit_hide",
+        StaffToolMenu.getStaffTools().add(new StaffTool(disableLegComponent, "Limb Binding Charm",
             "Lames or frees a single leg.",
             "Hold it and look at a spider's foot to select that leg, then right-click to bind or free it."));
         Scheduler.onTick(it -> {
@@ -119,7 +119,7 @@ public final class SetupItems {
         });
 
         CustomItemComponent toggleDebugComponent = new CustomItemComponent("toggleDebug", Material.BONE);
-        StaffToolMenu.getStaffTools().add(new StaffTool(toggleDebugComponent, "Broodkeeper's Sight", "item/bone",
+        StaffToolMenu.getStaffTools().add(new StaffTool(toggleDebugComponent, "Broodkeeper's Sight",
             "Shows the animation debug view for every spider.",
             "Right-click to show or hide leg targets, step zones and balance."));
         toggleDebugComponent.onGestureUse((player, item) -> {
@@ -131,7 +131,7 @@ public final class SetupItems {
 
 
         CustomItemComponent switchRendererComponent = new CustomItemComponent("switchRenderer", Material.LIGHT_BLUE_DYE);
-        StaffToolMenu.getStaffTools().add(new StaffTool(switchRendererComponent, "Spectral Form", "item/light_blue_dye",
+        StaffToolMenu.getStaffTools().add(new StaffTool(switchRendererComponent, "Spectral Form",
             "Draws the nearest spider as a particle sketch instead of blocks.",
             "Right-click to switch the nearest spider between its solid body and particles."));
         switchRendererComponent.onGestureUse((player, item) -> {
@@ -148,7 +148,7 @@ public final class SetupItems {
         });
 
         CustomItemComponent toggleCloakComponent = new CustomItemComponent("toggleCloak", Material.GREEN_DYE);
-        StaffToolMenu.getStaffTools().add(new StaffTool(toggleCloakComponent, "Shroud Charm", "item/green_dye",
+        StaffToolMenu.getStaffTools().add(new StaffTool(toggleCloakComponent, "Shroud Charm",
             "Shrouds the nearest spider so it copies whatever lies behind it.",
             "Right-click to shroud or unshroud the nearest spider."));
         toggleCloakComponent.onGestureUse((player, item) -> {
@@ -160,7 +160,7 @@ public final class SetupItems {
         });
 
         CustomItemComponent switchGaitComponent = new CustomItemComponent("switchGait", Material.BREEZE_ROD);
-        StaffToolMenu.getStaffTools().add(new StaffTool(switchGaitComponent, "Hunting Instinct", "item/breeze_rod",
+        StaffToolMenu.getStaffTools().add(new StaffTool(switchGaitComponent, "Hunting Instinct",
             "Switches the nearest spider between walking and galloping.",
             "Right-click to switch gait. Riders can also hold sprint to gallop."));
         switchGaitComponent.onGestureUse((player, item) -> {
@@ -174,7 +174,7 @@ public final class SetupItems {
         });
 
         CustomItemComponent toggleGripComponent = new CustomItemComponent("toggleGrip", Material.SLIME_BALL);
-        StaffToolMenu.getStaffTools().add(new StaffTool(toggleGripComponent, "Clinging Charm", "item/slime_ball",
+        StaffToolMenu.getStaffTools().add(new StaffTool(toggleGripComponent, "Clinging Charm",
             "Lets the nearest spider climb walls and ceilings, or drop back to the floor.",
             "Right-click to switch wall climbing on or off."));
         toggleGripComponent.onGestureUse((player, item) -> {
@@ -188,12 +188,12 @@ public final class SetupItems {
         });
 
         CustomItemComponent laserPointerComponent = new CustomItemComponent("laserPointer", Material.REDSTONE_TORCH);
-        StaffToolMenu.getStaffTools().add(new StaffTool(laserPointerComponent, "Brood Guide — aim to guide", "block/redstone_torch",
+        StaffToolMenu.getStaffTools().add(new StaffTool(laserPointerComponent, "Brood Guide — aim to guide",
             "Spiders walk to wherever you point it.",
             "Hold it and aim at the ground. Nothing is drawn where it points."));
 
         CustomItemComponent comeHereComponent = new CustomItemComponent("comeHere", Material.CARROT_ON_A_STICK);
-        StaffToolMenu.getStaffTools().add(new StaffTool(comeHereComponent, "Broodcall Whistle — hold to recall", "item/carrot_on_a_stick",
+        StaffToolMenu.getStaffTools().add(new StaffTool(comeHereComponent, "Broodcall Whistle — hold to recall",
             "Calls the spiders to you.",
             "Hold it and they walk towards you; put it away to release them."));
 
