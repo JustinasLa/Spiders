@@ -16,6 +16,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +46,7 @@ public final class StaffToolMenu {
         }
     }
 
-    /** A chest of every tool; clicking one gives the clicker a fresh copy. The menu stays open. */
+    /** A chest of every tool; clicking one puts a fresh copy in the clicker's first free hotbar slot. The menu stays open. */
     public static void openStaffToolMenu(Player player) {
         if (!StaffAccess.require(player)) return;
         MenuHolder holder = new MenuHolder();
@@ -82,8 +83,20 @@ public final class StaffToolMenu {
             player.closeInventory();
             return;
         }
-        Map<Integer, ItemStack> leftover = player.getInventory().addItem(tool.create());
-        for (ItemStack item : leftover.values()) player.getWorld().dropItem(player.getLocation(), item);
+        // first empty hotbar slot, else anywhere in the inventory, else at their feet
+        PlayerInventory inventory = player.getInventory();
+        boolean placed = false;
+        for (int slot = 0; slot < 9 && !placed; slot++) {
+            ItemStack existing = inventory.getItem(slot);
+            if (existing == null || existing.isEmpty()) {
+                inventory.setItem(slot, tool.create());
+                placed = true;
+            }
+        }
+        if (!placed) {
+            Map<Integer, ItemStack> leftover = inventory.addItem(tool.create());
+            for (ItemStack item : leftover.values()) player.getWorld().dropItem(player.getLocation(), item);
+        }
         Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.ENTITY_ITEM_PICKUP, .5f, 1.2f);
         player.sendActionBar(Component.text("Received " + tool.getName(), NamedTextColor.GRAY));
     }
