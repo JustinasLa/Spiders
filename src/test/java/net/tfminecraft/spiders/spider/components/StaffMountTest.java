@@ -54,6 +54,46 @@ class StaffMountTest {
     }
 
     @Test
+    @DisplayName("staff right-clicking the spider are seated without a saddle")
+    void staffRightClickSeatsWithoutSaddle() {
+        Player player = staff();
+        when(marker.getPassengers()).thenReturn(List.of());
+        PlayerInteractEntityEvent event = new PlayerInteractEntityEvent(player, pig, EquipmentSlot.HAND);
+        listener.onInteract(event);
+        assertTrue(event.isCancelled());
+        verify(marker).addPassenger(player);
+        verify(pig, never()).setSaddle(true);
+    }
+
+    @Test
+    @DisplayName("sneaking, off-hand or an occupied seat does not seat staff, and no saddle goes on")
+    void noSeatWhenSneakingOffHandOrOccupied() {
+        Player sneaking = staff();
+        when(sneaking.isSneaking()).thenReturn(true);
+        PlayerInteractEntityEvent sneak = new PlayerInteractEntityEvent(sneaking, pig, EquipmentSlot.HAND);
+        listener.onInteract(sneak);
+        assertTrue(sneak.isCancelled());
+
+        PlayerInteractEntityEvent offHand = new PlayerInteractEntityEvent(staff(), pig, EquipmentSlot.OFF_HAND);
+        listener.onInteract(offHand);
+        assertTrue(offHand.isCancelled());
+
+        Player rider = staff();
+        when(marker.getPassengers()).thenReturn(List.of(rider));
+        PlayerInteractEntityEvent occupied = new PlayerInteractEntityEvent(staff(), pig, EquipmentSlot.HAND);
+        listener.onInteract(occupied);
+        assertTrue(occupied.isCancelled());
+
+        verify(marker, never()).addPassenger(any());
+    }
+
+    private static Player staff() {
+        Player player = mock(Player.class);
+        when(player.hasPermission(StaffAccess.PERMISSION)).thenReturn(true);
+        return player;
+    }
+
+    @Test
     @DisplayName("staff mounting the pig is redirected to its seat")
     void staffMountingThePigIsRedirectedToItsSeat() {
         Player player = mock(Player.class);
