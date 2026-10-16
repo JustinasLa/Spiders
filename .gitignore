@@ -16,7 +16,6 @@ release.properties
 # Build dependencies
 /.build/
 *.jar
-!.mvn/wrapper/maven-wrapper.jar
 
 # Python caches and environments
 __pycache__/
@@ -34,7 +33,6 @@ venv/
 .classpath
 .settings/
 nbproject/private/
-.nb-gradle/
 
 # Logs and temporary files
 *.log
@@ -55,7 +53,3 @@ Desktop.ini
 
 # Technical documentation is maintained in TF-Minecraft/Docs
 /docs/
-
-# Kotlin and old Gradle build caches
-/.kotlin/
-/.gradle/
