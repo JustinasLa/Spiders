@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.WeakHashMap;
 
 /**
@@ -174,9 +175,9 @@ public final class RenderSpiderEntities {
             this.part = part;
             this.handle = handle;
             this.piece = piece;
-            NamespacedKey itemModel = piece.getItemModel();
-            this.entity = itemModel != null
-                ? RenderUtilities.renderItem(part.location, Entry::init, it -> updateItem(it, itemModel))
+            // the shape check rebuilds the entry when the piece's item model changes, so the display type stays right
+            this.entity = piece.getItemModel() != null
+                ? RenderUtilities.renderItem(part.location, Entry::init, this::updateItem)
                 : RenderUtilities.renderBlock(part.location, Entry::init, this::updateBlock);
         }
 
@@ -210,7 +211,9 @@ public final class RenderSpiderEntities {
         }
 
         /** Item models are drawn centred on the display, so shift them into the piece's unit cube. */
-        private void updateItem(ItemDisplay it, NamespacedKey itemModel) {
+        private void updateItem(ItemDisplay it) {
+            NamespacedKey itemModel = piece.getItemModel();
+            if (itemModel == null) return;
             RenderUtilities.interpolateTransform(it, transform.set(part.parent).mul(piece.getTransform()).translate(.5f, .5f, .5f));
             it.setBrightness(piece.getBrightness());
             float data = piece.getItemModelData();
@@ -223,8 +226,9 @@ public final class RenderSpiderEntities {
     }
 
     /**
-     * The identities and counts a tree's layout follows from, in walk order. Pieces themselves are edited
-     * in place (blinking, mimic pose), so only the lists holding them are compared.
+     * The identities and counts a tree's layout follows from, in walk order. A piece's block, brightness,
+     * transform and item model data are edited in place (blinking, mimic pose) and read at submit time,
+     * so only which pieces there are and which of them are items is compared.
      */
     static final class Shape {
         private final List<Object> recorded = new ArrayList<>();
@@ -273,14 +277,25 @@ public final class RenderSpiderEntities {
             }
         }
 
+        /** The list, each piece in it and whether (and as what) it is drawn as an item, which picks the display type. */
         private void pieces(List<BlockDisplayModelPiece> pieces) {
             identity(pieces);
             count(pieces.size());
+            for (int index = 0; index < pieces.size() && same; index++) {
+                BlockDisplayModelPiece piece = pieces.get(index);
+                identity(piece);
+                equal(piece.getItemModel());
+            }
         }
 
         private void identity(Object value) {
             if (recording) recorded.add(value);
             else same = same && cursor < recorded.size() && recorded.get(cursor++) == value;
+        }
+
+        private void equal(Object value) {
+            if (recording) recorded.add(value);
+            else same = same && cursor < recorded.size() && Objects.equals(recorded.get(cursor++), value);
         }
 
         private void count(int value) {

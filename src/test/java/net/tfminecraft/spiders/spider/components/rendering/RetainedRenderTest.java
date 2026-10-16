@@ -12,9 +12,13 @@ import net.tfminecraft.spiders.utilities.BlockDisplayModelPiece;
 import net.tfminecraft.spiders.utilities.DisplayModel;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.inverse_kinematics.IKChainWorldNode3D;
+import net.tfminecraft.spiders.utilities.rendering.RenderEntity;
 import net.tfminecraft.spiders.utilities.rendering.RenderItem;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.util.Vector;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -167,6 +171,55 @@ class RetainedRenderTest {
         assertEquals(6, addedPiece.entries.size());
 
         assertSame(addedPiece, tick());
+    }
+
+    @Test
+    @DisplayName("a piece swapped for another in the same list is rebuilt and drawn")
+    void rebuiltOnPieceSwappedInPlace() {
+        solveLeg();
+        RenderSpiderEntities.Retained before = tick();
+
+        BlockDisplayModelPiece swapped = piece();
+        segments.get(1).getModel().getPieces().set(1, swapped);
+        RenderSpiderEntities.Retained after = tick();
+
+        assertNotSame(before, after);
+        assertSame(swapped, after.entries.get(4).piece);
+        assertEquals(before.entries.get(4).handle, after.entries.get(4).handle);
+        assertSame(after, tick());
+    }
+
+    private Class<?> displayType(RenderSpiderEntities.Retained tree, int entry) {
+        return ((RenderEntity<?>) tree.entries.get(entry).entity).getClazz();
+    }
+
+    @Test
+    @DisplayName("setting, changing or clearing a piece's item model rebuilds it with the right display type")
+    void rebuiltOnItemModelChange() {
+        BlockDisplayModelPiece piece = bodyModel.getPieces().getFirst();
+        RenderSpiderEntities.Retained block = tick();
+        assertEquals(BlockDisplay.class, displayType(block, 0));
+
+        piece.setItemModel(new NamespacedKey("tfmc", "fang"));
+        RenderSpiderEntities.Retained item = tick();
+        assertNotSame(block, item);
+        assertEquals(ItemDisplay.class, displayType(item, 0));
+
+        piece.setItemModel(new NamespacedKey("tfmc", "fang"));
+        assertSame(item, tick());
+
+        piece.setItemModel(new NamespacedKey("tfmc", "claw"));
+        RenderSpiderEntities.Retained otherItem = tick();
+        assertNotSame(item, otherItem);
+        assertEquals(ItemDisplay.class, displayType(otherItem, 0));
+
+        piece.setItemModelData(3f); // the mimic pose edits this in place
+        assertSame(otherItem, tick());
+
+        piece.setItemModel(null);
+        RenderSpiderEntities.Retained cleared = tick();
+        assertNotSame(otherItem, cleared);
+        assertEquals(BlockDisplay.class, displayType(cleared, 0));
     }
 
     @Test
