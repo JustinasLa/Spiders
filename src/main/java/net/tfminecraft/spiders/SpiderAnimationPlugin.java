@@ -16,6 +16,7 @@ import net.tfminecraft.spiders.utilities.events.Events;
 import net.tfminecraft.spiders.utilities.events.Scheduler;
 import net.tfminecraft.spiders.utilities.rendering.RenderEntityTracker;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -57,8 +58,8 @@ public class SpiderAnimationPlugin extends JavaPlugin {
         SpiderActivity.setupRemoveBroken(ecs, getLogger());
         LaserPoint.setupLaserPointer(ecs);
         Events.addEventListener(new Listener() {
-            // a spider can't outlive its world
-            @EventHandler
+            // a spider can't outlive its world (unless another plugin keeps the world loaded)
+            @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
             public void onWorldUnload(WorldUnloadEvent event) {
                 for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
                     if (Objects.equals(pair.second().getWorld(), event.getWorld())) pair.first().remove();
