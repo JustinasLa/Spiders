@@ -8,6 +8,7 @@ import net.tfminecraft.spiders.spider.presets.AnimatedPalettes;
 import net.tfminecraft.spiders.utilities.DisplayModel;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.Serializer;
+import net.tfminecraft.spiders.utilities.Strings;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -97,7 +98,7 @@ public final class Symbols {
         }
 
         private Map<String, Object> resolve(String arguments) throws CommandSyntaxException {
-            if (arguments == null || arguments.isBlank()) {
+            if (arguments == null || Strings.isBlank(arguments)) {
                 Map<String, Object> defaults = new LinkedHashMap<>();
                 for (SymbolParameter parameter : parameters) defaults.put(parameter.name, parameter.defaultValue);
                 return defaults;
@@ -196,7 +197,7 @@ public final class Symbols {
     private static final Pattern SPLIT_REGEX = Pattern.compile("^([A-Za-z_]\\w*)\\s*(\\{.*})?$", Pattern.DOTALL);
 
     private static Pair<String, String> parseSymbol(String raw) {
-        Matcher match = SPLIT_REGEX.matcher(raw.strip());
+        Matcher match = SPLIT_REGEX.matcher(Strings.trim(raw));
         if (!match.matches()) return null;
         String arguments = match.group(2);
         return new Pair<>(match.group(1), arguments == null || arguments.isEmpty() ? null : arguments);

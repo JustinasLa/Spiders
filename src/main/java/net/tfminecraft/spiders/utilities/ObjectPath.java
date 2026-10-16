@@ -265,7 +265,7 @@ public class ObjectPath {
         int start = 0;
         for (int i = 0; i <= path.length(); i++) {
             if (i == path.length() || path.charAt(i) == '.' || path.charAt(i) == '[' || path.charAt(i) == ']') {
-                String part = path.substring(start, i).strip();
+                String part = Strings.trim(path.substring(start, i));
                 if (!part.isEmpty()) out.add(part);
                 start = i + 1;
             }

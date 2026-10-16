@@ -37,6 +37,7 @@ class CommandLimitsTest {
         assertThrows(CommandSyntaxException.class, () -> Symbols.resolveSymbol("HEX_BOT {segments: 100000}"));
         assertNull(Symbols.resolveSymbol("TORSO_BOXY"));
         assertNotNull(Symbols.resolveSymbol("EMPTY"));
+        assertNotNull(Symbols.resolveSymbol("\u00A0EMPTY\u00A0"), "a pasted non-breaking space");
     }
 
     @Test
