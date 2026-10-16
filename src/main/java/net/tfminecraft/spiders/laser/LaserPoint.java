@@ -22,11 +22,14 @@ import java.util.Objects;
 public final class LaserPoint implements ECSComponent {
     private World world;
     private Vector position;
+    /** Where the staff member holding the guide stands; spiders near them follow. */
+    private Vector holder;
     private boolean isVisible;
 
-    public LaserPoint(World world, Vector position, boolean isVisible) {
+    public LaserPoint(World world, Vector position, Vector holder, boolean isVisible) {
         this.world = world;
         this.position = position;
+        this.holder = holder;
         this.isVisible = isVisible;
     }
 
@@ -46,6 +49,14 @@ public final class LaserPoint implements ECSComponent {
         this.position = position;
     }
 
+    public Vector getHolder() {
+        return holder;
+    }
+
+    public void setHolder(Vector holder) {
+        this.holder = holder;
+    }
+
     public boolean isVisible() {
         return isVisible;
     }
@@ -53,6 +64,9 @@ public final class LaserPoint implements ECSComponent {
     public void setVisible(boolean isVisible) {
         this.isVisible = isVisible;
     }
+
+    /** Spiders only follow a Brood Guide or Broodcall Whistle held this close to them (blocks). */
+    public static final double FOLLOW_RANGE = 64.0;
 
     public static void setupLaserPointer(ECS app) {
         app.onTick(ecs -> {
@@ -68,6 +82,7 @@ public final class LaserPoint implements ECSComponent {
                 double nearestDistance = 0.0;
                 for (LaserPoint laser : lasers) {
                     if (!Objects.equals(laser.getWorld(), spider.getWorld())) continue;
+                    if (laser.getHolder().distanceSquared(spider.getPosition()) > FOLLOW_RANGE * FOLLOW_RANGE) continue;
                     double laserDistance = laser.getPosition().distanceSquared(spider.getPosition());
                     if (nearestLaser == null || Double.compare(nearestDistance, laserDistance) > 0) {
                         nearestLaser = laser;

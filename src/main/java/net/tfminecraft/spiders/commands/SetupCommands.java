@@ -20,17 +20,17 @@ import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.tfminecraft.spiders.AppState;
 import net.tfminecraft.spiders.MiscellaneousOptions;
-import net.tfminecraft.spiders.SetupItems;
 import net.tfminecraft.spiders.SpiderAnimationPlugin;
 import net.tfminecraft.spiders.StaffAccess;
 import net.tfminecraft.spiders.spider.components.Cloak;
-import net.tfminecraft.spiders.spider.components.Locomotion;
 import net.tfminecraft.spiders.spider.components.Mimic;
 import net.tfminecraft.spiders.spider.components.Pounce;
 import net.tfminecraft.spiders.spider.components.Splay;
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.spider.configuration.Gait;
 import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
+import net.tfminecraft.spiders.spider.configuration.SpiderOptionsLimits;
+import net.tfminecraft.spiders.spider.presets.CinderweaverSize;
 import net.tfminecraft.spiders.spider.presets.Presets;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.Serializer;
@@ -54,7 +54,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -76,7 +75,7 @@ public final class SetupCommands {
         return Commands.literal("spider")
             .requires(source -> StaffAccess.canUse(source.getSender()))
             .executes(ctx -> {
-                ctx.getSource().getSender().sendPlainMessage("Cinderweaver: /spider spawn <hatchling|hunter|broodmother|mimic|0.25–2.5>, mimic <place|wake|sleep|scare>, gait <walk|gallop>, speed <walk|gallop> [blocks/s], pounce <player|at x y z> [blocks/s], climb <on|off>, shroud <on|off>, tools, list, remove [all], scale <0.25–2.5>, splay, options");
+                ctx.getSource().getSender().sendPlainMessage(HELP);
                 return SUCCESS;
             })
             .then(optionsCommand(afterChange))
@@ -87,51 +86,28 @@ public final class SetupCommands {
             .then(speedCommand())
             .then(pounceCommand())
             .then(splayCommand())
-            .then(itemsCommand())
-            .then(Commands.literal("tools").executes(ctx -> {
-                if (!(ctx.getSource().getSender() instanceof Player player)) throw commandError("Players only");
-                StaffToolMenu.openStaffToolMenu(player);
-                return SUCCESS;
-            }))
+            // "items" is the old name of "tools"
+            .then(Commands.literal("tools").executes(SetupCommands::openTools))
+            .then(Commands.literal("items").executes(SetupCommands::openTools))
             .then(StaffCommands.spawnCommand())
             .then(MimicCommands.mimicCommand())
             .then(StaffCommands.listCommand())
-            .then(StaffCommands.removeCommand())
-            // temp debug
-            .then(Commands.literal("fall").then(Commands.argument("height", DoubleArgumentType.doubleArg()).executes(ctx -> {
-                double height = DoubleArgumentType.getDouble(ctx, "height");
-                ECSEntity spider = findTargetSpider(ctx.getSource());
-                if (spider == null) return SUCCESS;
-                SpiderBody body = spider.query(SpiderBody.class);
-                if (body == null) return SUCCESS;
-                Vector newPosition = body.getPosition().clone();
-                newPosition.setY(newPosition.getY() + height);
-                body.teleport(newPosition);
+            .then(StaffCommands.removeCommand());
+    }
 
-                return SUCCESS;
-            })))
-            .then(Commands.literal("walk").then(Commands.argument("ticks", IntegerArgumentType.integer(1)).executes(ctx -> {
-                int ticks = IntegerArgumentType.getInteger(ctx, "ticks");
-                ECSEntity spider = requireTargetSpider(ctx.getSource());
-                SpiderOptions options = spider.query(SpiderOptions.class);
-                if (options == null) throw commandError("No spider found");
+    static final String HELP = String.join("\n",
+        "Cinderweaver commands. Most act on the spider your Summoning Seal summoned, else the nearest one:",
+        "/spider spawn <hatchling|hunter|broodmother|mimic|" + CinderweaverSize.MIN_SCALE + "–" + CinderweaverSize.MAX_SCALE + "> [at <world> <x> <y> <z>]",
+        "/spider mimic <place|wake|sleep|scare> [at <world> <x> <y> <z>]",
+        "/spider gait <walk|gallop>, speed <walk|gallop> [blocks/s], climb <on|off>, shroud <on|off>",
+        "/spider pounce <player|nearest|at <x> <y> <z>> [blocks/s], pounce stop",
+        "/spider scale <" + CinderweaverSize.MIN_SCALE + "–" + CinderweaverSize.MAX_SCALE + ">, splay [delay], options <path> [set <value>|reset]",
+        "/spider tools, list, remove [all|<id>]");
 
-                int[] remaining = {ticks};
-                Scheduler.interval(0, 1, self -> {
-                    SpiderBody body = spider.query(SpiderBody.class);
-                    Locomotion locomotion = spider.query(Locomotion.class);
-
-                    CommandSender actor = ctx.getSource().getSender();
-                    if (!StaffAccess.canUse(actor) || (actor instanceof Player player && !player.isOnline()) || remaining[0]-- <= 0 || body == null || locomotion == null || spider.getScheduledForRemoval()) {
-                        self.close();
-                        return;
-                    }
-
-                    locomotion.walk(body.forwardDirection().multiply(options.getGait().getMaxSpeed()));
-                });
-
-                return SUCCESS;
-            })));
+    private static int openTools(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        if (!(ctx.getSource().getSender() instanceof Player player)) throw commandError("Players only");
+        StaffToolMenu.openStaffToolMenu(player);
+        return SUCCESS;
     }
 
     // KNOWN LIMITATION: A path containing `[` must be quoted.
@@ -190,6 +166,7 @@ public final class SetupCommands {
         OptionGroup group = requireOptionGroup(groupName);
         Object live = requireLive(group, ctx.getSource());
         String raw = StringArgumentType.getString(ctx, "value");
+        requireEditable(groupName, ctx.getSource());
 
         Object value = Symbols.resolveSymbol(raw);
         if (value == null) {
@@ -203,7 +180,7 @@ public final class SetupCommands {
 
         Object finalValue = value;
         if (!group.edit(live, it -> writeOption(it, subPath, finalValue))) {
-            throw commandError("Could not set " + rawPath);
+            throw commandError("Could not set " + rawPath + (group.rejection != null ? ": " + group.rejection : ""));
         }
 
         afterChange.run();
@@ -219,12 +196,13 @@ public final class SetupCommands {
         String subPath = parsed.second();
         OptionGroup group = requireOptionGroup(groupName);
         Object live = requireLive(group, ctx.getSource());
+        requireEditable(groupName, ctx.getSource());
 
         Object value = Serializer.getPath().get(group.defaultValue.get(), subPath);
         if (value == null) throw commandError("\"" + rawPath + "\" does not exist");
 
         if (!group.edit(live, it -> writeOption(it, subPath, value))) {
-            throw commandError("Could not reset " + rawPath);
+            throw commandError("Could not reset " + rawPath + (group.rejection != null ? ": " + group.rejection : ""));
         }
 
         afterChange.run();
@@ -236,7 +214,7 @@ public final class SetupCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> scaleCommand(Runnable afterChange) {
         return Commands.literal("scale").then(
-            Commands.argument("scale", DoubleArgumentType.doubleArg(0.25, 2.5))
+            Commands.argument("scale", DoubleArgumentType.doubleArg(CinderweaverSize.MIN_SCALE, CinderweaverSize.MAX_SCALE))
                 .executes(ctx -> {
                     double scale = DoubleArgumentType.getDouble(ctx, "scale");
 
@@ -343,16 +321,18 @@ public final class SetupCommands {
     }
 
     private static int pounce(CommandContext<CommandSourceStack> ctx, Double speed) throws CommandSyntaxException {
-        Player player = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"));
-        if (player == null) throw commandError("Player not found");
+        Player player = resolvePlayer(StringArgumentType.getString(ctx, "target"));
         SpiderBody spiderBody = requireTargetSpider(ctx.getSource()).query(SpiderBody.class);
         World spiderWorld = spiderBody == null ? null : spiderBody.getWorld();
         if (!Objects.equals(player.getWorld(), spiderWorld)) throw commandError(player.getName() + " is not in the spider's world");
-        return startPounce(ctx, speed, player.getName(), body -> {
-            boolean reachable = player.isOnline() && Objects.equals(player.getWorld(), body.getWorld()) && player.getGameMode() != GameMode.SPECTATOR &&
-                player.getLocation().toVector().distanceSquared(body.getPosition()) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE;
-            return reachable ? player.getLocation().toVector() : null;
-        });
+        return startPounce(ctx, speed, player.getName(), body -> reachableTarget(player, body));
+    }
+
+    /** Where to pounce at [player], or null once they can't be chased (gone, spectating, too far). */
+    private static Vector reachableTarget(Player player, SpiderBody body) {
+        boolean reachable = player.isOnline() && Objects.equals(player.getWorld(), body.getWorld()) && player.getGameMode() != GameMode.SPECTATOR &&
+            player.getLocation().toVector().distanceSquared(body.getPosition()) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE;
+        return reachable ? player.getLocation().toVector() : null;
     }
 
     // a fixed spot in the spider's world, e.g. for staged scenes
@@ -379,20 +359,43 @@ public final class SetupCommands {
                 Pounce.stopPounce(entity);
                 return SUCCESS;
             }))
+            // the player nearest the spider, e.g. from a command block
+            .then(Commands.literal("nearest")
+                .executes(ctx -> pounceNearest(ctx, null))
+                .then(speedArgument().executes(ctx -> pounceNearest(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")))))
             .then(Commands.argument("target", StringArgumentType.word())
                 .suggests((context, builder) -> {
                     List<String> names = new ArrayList<>();
                     for (Player online : Bukkit.getOnlinePlayers()) names.add(online.getName());
-                    for (String name : names) {
-                        if (name.regionMatches(true, 0, builder.getRemaining(), 0, builder.getRemaining().length())) builder.suggest(name);
-                    }
-                    return builder.buildFuture();
+                    return suggest(builder, names);
                 })
                 .executes(ctx -> pounce(ctx, null))
                 .then(speedArgument().executes(ctx -> pounce(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")))));
     }
 
     private static final double MAX_POUNCE_DISTANCE = 96.0;
+
+    /** An online player by name, ignoring case. */
+    private static Player resolvePlayer(String name) throws CommandSyntaxException {
+        Player exact = Bukkit.getPlayerExact(name);
+        if (exact != null) return exact;
+        for (Player online : Bukkit.getOnlinePlayers()) if (online.getName().equalsIgnoreCase(name)) return online;
+        throw commandError("Player not found");
+    }
+
+    private static int pounceNearest(CommandContext<CommandSourceStack> ctx, Double speed) throws CommandSyntaxException {
+        SpiderBody body = requireTargetSpider(ctx.getSource()).query(SpiderBody.class);
+        if (body == null) throw commandError("No spider found");
+        Player nearest = null;
+        for (Player player : body.getWorld().getPlayers()) {
+            if (player.getGameMode() == GameMode.SPECTATOR) continue;
+            double distance = player.getLocation().toVector().distanceSquared(body.getPosition());
+            if (distance < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE && (nearest == null || distance < nearest.getLocation().toVector().distanceSquared(body.getPosition()))) nearest = player;
+        }
+        if (nearest == null) throw commandError("No player within " + (int) MAX_POUNCE_DISTANCE + " blocks of the spider");
+        Player target = nearest;
+        return startPounce(ctx, speed, target.getName(), it -> reachableTarget(target, it));
+    }
 
     private static int setShroud(CommandContext<CommandSourceStack> ctx, boolean on) throws CommandSyntaxException {
         ECSEntity entity = requireTargetSpider(ctx.getSource());
@@ -442,16 +445,6 @@ public final class SetupCommands {
         return SUCCESS;
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> itemsCommand() {
-        return Commands.literal("items").executes(ctx -> {
-            if (!(ctx.getSource().getSender() instanceof Player player)) {
-                throw commandError("This command can only be used by players");
-            }
-            StaffToolMenu.openStaffToolMenu(player);
-            return SUCCESS;
-        });
-    }
-
     private static boolean writeOption(Object target, String path, Object value) {
         if (!path.isEmpty()) return Serializer.getPath().set(target, path, value);
 
@@ -472,20 +465,21 @@ public final class SetupCommands {
     }
 
     private static ECSEntity findTargetSpider(CommandSourceStack source) {
-        if (!(source.getSender() instanceof Player player)) {
-            List<Pair<ECSEntity, SpiderBody>> spiders = AppState.getEcs().query(ECSEntity.class, SpiderBody.class);
-            return spiders.isEmpty() ? null : spiders.get(0).first();
-        }
-
-        UUID held = SetupItems.heldSpiderUUID(player);
-        ECSEntity named = held == null ? null : AppState.findSpiderByUUID(held);
-        return named != null ? named : AppState.findNearestSpider(player);
+        return SpiderTargets.forCommand(source);
     }
 
-    private static ECSEntity requireTargetSpider(CommandSourceStack source) throws CommandSyntaxException {
+    static ECSEntity requireTargetSpider(CommandSourceStack source) throws CommandSyntaxException {
         ECSEntity spider = findTargetSpider(source);
-        if (spider == null) throw commandError("No spider found");
-        return spider;
+        if (spider != null) return spider;
+        if (source.getSender() instanceof Player) throw commandError("No spider found in this world");
+        throw commandError("No spider found in " + source.getLocation().getWorld().getName() + "; use /execute in <world> positioned <x> <y> <z> run spider ...");
+    }
+
+    /** Mimics keep their chest shape and floor-bound gait, so their options can't be edited. */
+    private static void requireEditable(String groupName, CommandSourceStack source) throws CommandSyntaxException {
+        if (!groupName.equals("spider_options")) return;
+        ECSEntity spider = findTargetSpider(source);
+        if (spider != null && spider.query(Mimic.class) != null) throw commandError("Mimics can't be changed with /spider options.");
     }
 
     private static Object suggestionSource(CommandSourceStack source, OptionGroup group) {
@@ -497,24 +491,32 @@ public final class SetupCommands {
         final Function<CommandSourceStack, Object> live;
         final Supplier<Object> defaultValue;
         final BiPredicate<Object, Object> swap;
+        /** Why a draft can't be used, or null if it can; checked before the swap. */
+        final Function<Object, String> validate;
+        /** Why the last edit was refused, for the error message. */
+        String rejection;
 
-        OptionGroup(Function<CommandSourceStack, Object> live, Supplier<Object> defaultValue, BiPredicate<Object, Object> swap) {
+        OptionGroup(Function<CommandSourceStack, Object> live, Supplier<Object> defaultValue, BiPredicate<Object, Object> swap, Function<Object, String> validate) {
             this.live = live;
             this.defaultValue = defaultValue;
             this.swap = swap;
+            this.validate = validate;
         }
 
         OptionGroup(Function<CommandSourceStack, Object> live, Supplier<Object> defaultValue) {
-            this(live, defaultValue, null);
+            this(live, defaultValue, null, null);
         }
 
         boolean edit(Object live, Predicate<Object> edit) {
+            rejection = null;
             // edit in place
             if (swap == null) return edit.test(live);
 
-            // edit draft then swap
+            // edit a draft, check it, then swap
             Object draft = Serializer.copyOf(live);
-            return edit.test(draft) && swap.test(live, draft);
+            if (!edit.test(draft)) return false;
+            rejection = validate == null ? null : validate.apply(draft);
+            return rejection == null && swap.test(live, draft);
         }
     }
 
@@ -536,7 +538,8 @@ public final class SetupCommands {
             (live, draft) -> {
                 ((SpiderOptions) live).copyFrom((SpiderOptions) draft);
                 return true;
-            }
+            },
+            draft -> SpiderOptionsLimits.problem((SpiderOptions) draft)
         ));
         OPTION_GROUPS.put("global", new OptionGroup(
             source -> AppState.getMiscOptions(),

@@ -56,13 +56,17 @@ public class RenderEntity<T extends Entity> implements RenderItem {
             // a seat carries its rider along; unmoved entities aren't sent again
             if (!entity.isInsideVehicle() && !isAt(entity, location)) entity.teleport(location, TeleportFlag.EntityState.RETAIN_PASSENGERS);
             update.accept(entity);
+            RenderVisibility.apply(entity);
         } else {
             Consumer<T> initializer = it -> {
                 it.setPersistent(false);
+                RenderVisibility.onSpawn(it);
                 init.accept(it);
                 update.accept(it);
             };
-            RenderEntityTracker.put(handle, location.getWorld().spawn(location, clazz, initializer));
+            T spawned = location.getWorld().spawn(location, clazz, initializer);
+            RenderEntityTracker.put(handle, spawned);
+            RenderVisibility.apply(spawned);
         }
     }
 

@@ -5,6 +5,7 @@ import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
 import net.tfminecraft.spiders.utilities.Pair;
+import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Triple;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
@@ -17,10 +18,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.Vector;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 
 /**
@@ -40,9 +46,25 @@ public class MeleeListener implements Listener {
         this(app, MeleeListener::attackReach);
     }
 
+    /** The tick each player last right-clicked: the client swings its arm for those too (placing, opening). */
+    private final Map<Player, Integer> lastUse = new WeakHashMap<>();
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onUse(PlayerInteractEvent event) {
+        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) lastUse.put(event.getPlayer(), Core.getCurrentTick());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onUseEntity(PlayerInteractEntityEvent event) {
+        lastUse.put(event.getPlayer(), Core.getCurrentTick());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSwing(PlayerArmSwingEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
+        // the swing that comes with a right-click is not an attack
+        Integer used = lastUse.get(event.getPlayer());
+        if (used != null && Core.getCurrentTick() - used <= 1) return;
         strike(event.getPlayer(), null);
     }
 

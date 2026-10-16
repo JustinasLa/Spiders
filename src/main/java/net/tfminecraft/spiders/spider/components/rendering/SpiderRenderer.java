@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.spider.components.rendering;
 
+import net.tfminecraft.spiders.AppState;
 import net.tfminecraft.spiders.spider.components.Cloak;
 import net.tfminecraft.spiders.spider.components.PointDetector;
 import net.tfminecraft.spiders.spider.components.body.Leg;
@@ -13,9 +14,11 @@ import net.tfminecraft.spiders.utilities.ecs.ECSComponent;
 import net.tfminecraft.spiders.utilities.ecs.Quintuple;
 import net.tfminecraft.spiders.utilities.events.Scheduler;
 import net.tfminecraft.spiders.utilities.inverse_kinematics.IKChainWorldNode3D;
+import net.tfminecraft.spiders.utilities.rendering.RenderVisibility;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -23,16 +26,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SpiderRenderer implements ECSComponent {
-    private boolean renderDebugVisuals = false;
     private boolean useParticles = false;
-
-    public boolean getRenderDebugVisuals() {
-        return renderDebugVisuals;
-    }
-
-    public void setRenderDebugVisuals(boolean renderDebugVisuals) {
-        this.renderDebugVisuals = renderDebugVisuals;
-    }
 
     public boolean getUseParticles() {
         return useParticles;
@@ -74,6 +68,7 @@ public class SpiderRenderer implements ECSComponent {
         });
 
         app.onRender(ecs -> {
+            List<Player> debugViewers = AppState.getDebugViewers();
             for (Quintuple<SpiderBody, Cloak, PointDetector, SpiderRenderer, SpiderOptions> row : app.query(SpiderBody.class, Cloak.class, PointDetector.class, SpiderRenderer.class, SpiderOptions.class)) {
                 SpiderBody spider = row.first();
                 Cloak cloak = row.second();
@@ -88,7 +83,8 @@ public class SpiderRenderer implements ECSComponent {
                 }
 
 
-                if (renderer.getRenderDebugVisuals()) SpiderDebugRenderEntities.spiderDebugRenderEntities(spider, pointDetector, options).submit(new Pair<>(spider, "debug"));
+                if (!debugViewers.isEmpty()) RenderVisibility.onlyFor(debugViewers, () ->
+                    SpiderDebugRenderEntities.spiderDebugRenderEntities(spider, pointDetector, options).submit(new Pair<>(spider, "debug")));
             }
         });
     }

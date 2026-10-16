@@ -2,7 +2,12 @@ package net.tfminecraft.spiders.utilities.events;
 
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Disposable;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.Container;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Openable;
+import org.bukkit.block.data.type.Switch;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -67,7 +72,8 @@ public final class Events {
             @EventHandler
             public void onPlayerInteract(PlayerInteractEvent event) {
                 if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-                if (event.getAction() == Action.RIGHT_CLICK_BLOCK && !(isNotInteractable(event.getClickedBlock()) || event.getPlayer().isSneaking())) return;
+                // a door, lever or chest clicked without sneaking opens instead
+                if (event.getAction() == Action.RIGHT_CLICK_BLOCK && opensWithoutItem(event.getClickedBlock()) && !event.getPlayer().isSneaking()) return;
                 Player player = event.getPlayer();
                 ItemStack item = event.getItem();
                 if (item == null) return;
@@ -76,7 +82,15 @@ public final class Events {
         });
     }
 
-    private static boolean isNotInteractable(Block block) {
-        return block != null && !block.getType().isInteractable();
+    /**
+     * Doors, trapdoors, gates, levers, buttons and containers: right-clicking them opens or toggles
+     * them without using the item in hand. Other blocks (signs, pots, ...) would take the item.
+     */
+    public static boolean opensWithoutItem(Block block) {
+        if (block == null) return false;
+        BlockData data = block.getBlockData();
+        if (data instanceof Openable || data instanceof Switch) return true;
+        if (block.getType() == Material.ENDER_CHEST) return true;
+        return block.getState(false) instanceof Container;
     }
 }

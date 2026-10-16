@@ -54,7 +54,7 @@ class StaffAccessTest {
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
         dispatcher.register(SetupCommands.spiderCommandTree(() -> {}));
         for (String command : List.of("spider", "spider spawn hunter", "spider tools", "spider items",
-            "spider remove all", "spider list", "spider scale 1", "spider splay", "spider walk 20",
+            "spider remove all", "spider list", "spider scale 1", "spider splay", "spider pounce nearest",
             "spider options global.showLaser set false")) {
             assertThrows(CommandSyntaxException.class, () -> dispatcher.execute(command, source), command);
         }

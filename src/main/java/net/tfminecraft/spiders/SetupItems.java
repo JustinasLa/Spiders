@@ -1,8 +1,10 @@
 package net.tfminecraft.spiders;
 
 import net.kyori.adventure.text.Component;
+import net.tfminecraft.spiders.commands.SpiderTargets;
 import net.tfminecraft.spiders.laser.LaserPoint;
 import net.tfminecraft.spiders.spider.components.Cloak;
+import net.tfminecraft.spiders.spider.components.Mimic;
 import net.tfminecraft.spiders.spider.components.PointDetector;
 import net.tfminecraft.spiders.spider.components.body.Leg;
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
@@ -106,27 +108,28 @@ public final class SetupItems {
             }
         });
         disableLegComponent.onGestureUse((player, item) -> {
+            // the leg the player looks at may belong to any spider
+            boolean toggled = false;
             for (PointDetector pointDetector : AppState.getEcs().query(PointDetector.class)) {
                 Leg selectedLeg = pointDetector.getSelectedLeg().get(player);
-                if (selectedLeg == null) {
-                    Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_SCULK_HIT, 1.0f, 2.0f);
-                    return;
-                }
-
+                if (selectedLeg == null) continue;
                 selectedLeg.setDisabled(!selectedLeg.isDisabled());
-                Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_WOOL_HIT, 1.0f, 1.0f);
+                toggled = true;
             }
+            if (toggled) Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_WOOL_HIT, 1.0f, 1.0f);
+            else Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_SCULK_HIT, 1.0f, 2.0f);
         });
 
         CustomItemComponent toggleDebugComponent = new CustomItemComponent("toggleDebug", Material.BONE);
         StaffToolMenu.getStaffTools().add(new StaffTool(toggleDebugComponent, "Broodkeeper's Sight",
-            "Shows the animation debug view for every spider.",
+            "Shows you the animation debug view for every spider. Only you see it.",
             "Right-click to show or hide leg targets, step zones and balance."));
         toggleDebugComponent.onGestureUse((player, item) -> {
-            AppState.setRenderDebugVisuals(!AppState.getRenderDebugVisuals());
+            boolean on = AppState.toggleDebugView(player);
 
-            float pitch = AppState.getRenderDebugVisuals() ? 2.0f : 1.5f;
+            float pitch = on ? 2.0f : 1.5f;
             Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_SCULK_HIT, 1.0f, pitch);
+            player.sendActionBar(Component.text(on ? "Debug view on (only you see it)" : "Debug view off"));
         });
 
 
@@ -135,7 +138,7 @@ public final class SetupItems {
             "Draws the nearest spider as a particle sketch instead of blocks.",
             "Right-click to switch the nearest spider between its solid body and particles."));
         switchRendererComponent.onGestureUse((player, item) -> {
-            ECSEntity nearest = AppState.findNearestSpider(player);
+            ECSEntity nearest = toolTarget(player);
             SpiderRenderer renderer = nearest == null ? null : nearest.query(SpiderRenderer.class);
             if (renderer == null) return;
             renderer.setUseParticles(!renderer.getUseParticles());
@@ -152,11 +155,13 @@ public final class SetupItems {
             "Shrouds the nearest spider so it copies whatever lies behind it.",
             "Right-click to shroud or unshroud the nearest spider."));
         toggleCloakComponent.onGestureUse((player, item) -> {
-            ECSEntity entity = AppState.findNearestSpider(player);
+            ECSEntity entity = toolTarget(player);
             if (entity == null) return;
             Cloak cloak = entity.query(Cloak.class);
             if (cloak == null) return;
             cloak.toggleCloak(AppState.getEcs(), entity);
+            Overloads.playSound(player.getWorld(), Overloads.getPosition(player), Sound.BLOCK_SCULK_HIT, 1.0f, cloak.getActive() ? 2.0f : 1.5f);
+            player.sendActionBar(Component.text(cloak.getActive() ? "Shroud on" : "Shroud off"));
         });
 
         CustomItemComponent switchGaitComponent = new CustomItemComponent("switchGait", Material.BREEZE_ROD);
@@ -164,7 +169,7 @@ public final class SetupItems {
             "Switches the nearest spider between walking and galloping.",
             "Right-click to switch gait. Riders can also hold sprint to gallop."));
         switchGaitComponent.onGestureUse((player, item) -> {
-            ECSEntity entity = AppState.findNearestSpider(player);
+            ECSEntity entity = toolTarget(player);
             if (entity == null) return;
             SpiderOptions options = entity.query(SpiderOptions.class);
             if (options == null) return;
@@ -178,8 +183,12 @@ public final class SetupItems {
             "Lets the nearest spider climb walls and ceilings, or drop back to the floor.",
             "Right-click to switch wall climbing on or off."));
         toggleGripComponent.onGestureUse((player, item) -> {
-            ECSEntity entity = AppState.findNearestSpider(player);
+            ECSEntity entity = toolTarget(player);
             if (entity == null) return;
+            if (entity.query(Mimic.class) != null) {
+                player.sendActionBar(Component.text("Mimics keep to the floor"));
+                return;
+            }
             SpiderOptions options = entity.query(SpiderOptions.class);
             if (options == null) return;
             options.setClimbing(!options.getClimbing());
@@ -189,12 +198,12 @@ public final class SetupItems {
 
         CustomItemComponent laserPointerComponent = new CustomItemComponent("laserPointer", Material.REDSTONE_TORCH);
         StaffToolMenu.getStaffTools().add(new StaffTool(laserPointerComponent, "Brood Guide — aim to guide",
-            "Spiders walk to wherever you point it.",
+            "Spiders within 64 blocks walk to wherever you point it.",
             "Hold it and aim at the ground. Nothing is drawn where it points."));
 
         CustomItemComponent comeHereComponent = new CustomItemComponent("comeHere", Material.CARROT_ON_A_STICK);
         StaffToolMenu.getStaffTools().add(new StaffTool(comeHereComponent, "Broodcall Whistle — hold to recall",
-            "Calls the spiders to you.",
+            "Calls the spiders within 64 blocks to you.",
             "Hold it and they walk towards you; put it away to release them."));
 
         ecs.onTick(app -> {
@@ -233,6 +242,13 @@ public final class SetupItems {
                 if (pair.second().getExpired()) pair.first().remove();
             }
         });
+    }
+
+    /** The spider a tool acts on, telling the player when there is none in reach. */
+    private static ECSEntity toolTarget(Player player) {
+        ECSEntity entity = SpiderTargets.forTool(player);
+        if (entity == null) player.sendActionBar(Component.text("No Cinderweaver within " + (int) SpiderTargets.TOOL_RANGE + " blocks"));
+        return entity;
     }
 
     private static final class LaserPointExpire implements ECSComponent {
@@ -275,6 +291,7 @@ public final class SetupItems {
             // update existing laser
             existing.second().setWorld(player.getWorld());
             existing.second().setPosition(position);
+            existing.second().setHolder(Overloads.getPosition(player));
             existing.second().setVisible(isVisible);
             existing.third().setExpired(false);
         } else {
@@ -284,6 +301,7 @@ public final class SetupItems {
                 new LaserPoint(
                     player.getWorld(),
                     position,
+                    Overloads.getPosition(player),
                     isVisible
                 )
             );

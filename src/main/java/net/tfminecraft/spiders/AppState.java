@@ -18,6 +18,7 @@ import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSComponent;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.maths.Maths;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
@@ -25,7 +26,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class AppState {
@@ -33,7 +38,8 @@ public final class AppState {
 
     public static final int MAX_SPIDERS = 6;
     private static MiscellaneousOptions miscOptions = new MiscellaneousOptions();
-    private static boolean renderDebugVisuals = false;
+    /** Staff who have the animation debug view on; only they see it. */
+    private static final Set<UUID> debugViewers = new HashSet<>();
 
     private static final ECS ecs = new ECS();
 
@@ -45,12 +51,21 @@ public final class AppState {
         AppState.miscOptions = miscOptions;
     }
 
-    public static boolean getRenderDebugVisuals() {
-        return renderDebugVisuals;
+    /** Turns the debug view on or off for [player]; true if it is now on. */
+    public static boolean toggleDebugView(Player player) {
+        if (debugViewers.remove(player.getUniqueId())) return false;
+        debugViewers.add(player.getUniqueId());
+        return true;
     }
 
-    public static void setRenderDebugVisuals(boolean renderDebugVisuals) {
-        AppState.renderDebugVisuals = renderDebugVisuals;
+    /** Online staff who have the debug view on. */
+    public static List<Player> getDebugViewers() {
+        List<Player> out = new ArrayList<>();
+        for (UUID id : debugViewers) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null && StaffAccess.canUse(player)) out.add(player);
+        }
+        return out;
     }
 
     public static ECS getEcs() {
@@ -141,6 +156,11 @@ public final class AppState {
     }
 
     public static ECSEntity findNearestSpider(Location location) {
+        return findNearestSpider(location, Double.POSITIVE_INFINITY);
+    }
+
+    /** The nearest spider in [location]'s world within [maxDistance] blocks, or null. */
+    public static ECSEntity findNearestSpider(Location location, double maxDistance) {
         ECSEntity nearest = null;
         double nearestDistance = 0.0;
         for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
@@ -151,6 +171,6 @@ public final class AppState {
                 nearestDistance = distance;
             }
         }
-        return nearest;
+        return nearest != null && nearestDistance <= maxDistance * maxDistance ? nearest : null;
     }
 }
