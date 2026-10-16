@@ -43,7 +43,6 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -101,7 +100,7 @@ public final class SetupCommands {
         "/spider spawn <hatchling|hunter|broodmother|mimic|" + CinderweaverSize.MIN_SCALE + "–" + CinderweaverSize.MAX_SCALE + "> [at <world> <x> <y> <z>]",
         "/spider mimic <place|wake|sleep|scare> [at <world> <x> <y> <z>]",
         "/spider gait <walk|gallop>, speed <walk|gallop> [blocks/s], climb <on|off>, shroud <on|off>",
-        "/spider pounce <player|at <x> <y> <z>> [blocks/s], pounce stop",
+        "/spider pounce <player|nearest|at <x> <y> <z>> [blocks/s], pounce stop",
         "/spider scale <" + CinderweaverSize.MIN_SCALE + "–" + CinderweaverSize.MAX_SCALE + ">, splay [delay], options <path> [set <value>|reset]",
         "/spider tools, list, remove [all|<id>]");
 
@@ -322,15 +321,18 @@ public final class SetupCommands {
     }
 
     private static int pounce(CommandContext<CommandSourceStack> ctx, Double speed) throws CommandSyntaxException {
-        Player player = resolvePlayer(ctx.getSource().getSender(), StringArgumentType.getString(ctx, "target"));
+        Player player = resolvePlayer(StringArgumentType.getString(ctx, "target"));
         SpiderBody spiderBody = requireTargetSpider(ctx.getSource()).query(SpiderBody.class);
         World spiderWorld = spiderBody == null ? null : spiderBody.getWorld();
         if (!Objects.equals(player.getWorld(), spiderWorld)) throw commandError(player.getName() + " is not in the spider's world");
-        return startPounce(ctx, speed, player.getName(), body -> {
-            boolean reachable = player.isOnline() && Objects.equals(player.getWorld(), body.getWorld()) && player.getGameMode() != GameMode.SPECTATOR &&
-                player.getLocation().toVector().distanceSquared(body.getPosition()) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE;
-            return reachable ? player.getLocation().toVector() : null;
-        });
+        return startPounce(ctx, speed, player.getName(), body -> reachableTarget(player, body));
+    }
+
+    /** Where to pounce at [player], or null once they can't be chased (gone, spectating, too far). */
+    private static Vector reachableTarget(Player player, SpiderBody body) {
+        boolean reachable = player.isOnline() && Objects.equals(player.getWorld(), body.getWorld()) && player.getGameMode() != GameMode.SPECTATOR &&
+            player.getLocation().toVector().distanceSquared(body.getPosition()) < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE;
+        return reachable ? player.getLocation().toVector() : null;
     }
 
     // a fixed spot in the spider's world, e.g. for staged scenes
@@ -357,10 +359,13 @@ public final class SetupCommands {
                 Pounce.stopPounce(entity);
                 return SUCCESS;
             }))
-            // a name or a selector such as @p
+            // the player nearest the spider, e.g. from a command block
+            .then(Commands.literal("nearest")
+                .executes(ctx -> pounceNearest(ctx, null))
+                .then(speedArgument().executes(ctx -> pounceNearest(ctx, DoubleArgumentType.getDouble(ctx, "blocksPerSecond")))))
             .then(Commands.argument("target", StringArgumentType.word())
                 .suggests((context, builder) -> {
-                    List<String> names = new ArrayList<>(List.of("@p", "@r"));
+                    List<String> names = new ArrayList<>();
                     for (Player online : Bukkit.getOnlinePlayers()) names.add(online.getName());
                     return suggest(builder, names);
                 })
@@ -370,16 +375,26 @@ public final class SetupCommands {
 
     private static final double MAX_POUNCE_DISTANCE = 96.0;
 
-    /** A player by name, or the first player a selector such as {@code @p} finds. */
-    private static Player resolvePlayer(CommandSender sender, String target) throws CommandSyntaxException {
-        List<Entity> found;
-        try {
-            found = Bukkit.selectEntities(sender, target);
-        } catch (IllegalArgumentException e) {
-            throw commandError("Not a player name or selector: " + target);
-        }
-        for (Entity entity : found) if (entity instanceof Player player) return player;
+    /** An online player by name, ignoring case. */
+    private static Player resolvePlayer(String name) throws CommandSyntaxException {
+        Player exact = Bukkit.getPlayerExact(name);
+        if (exact != null) return exact;
+        for (Player online : Bukkit.getOnlinePlayers()) if (online.getName().equalsIgnoreCase(name)) return online;
         throw commandError("Player not found");
+    }
+
+    private static int pounceNearest(CommandContext<CommandSourceStack> ctx, Double speed) throws CommandSyntaxException {
+        SpiderBody body = requireTargetSpider(ctx.getSource()).query(SpiderBody.class);
+        if (body == null) throw commandError("No spider found");
+        Player nearest = null;
+        for (Player player : body.getWorld().getPlayers()) {
+            if (player.getGameMode() == GameMode.SPECTATOR) continue;
+            double distance = player.getLocation().toVector().distanceSquared(body.getPosition());
+            if (distance < MAX_POUNCE_DISTANCE * MAX_POUNCE_DISTANCE && (nearest == null || distance < nearest.getLocation().toVector().distanceSquared(body.getPosition()))) nearest = player;
+        }
+        if (nearest == null) throw commandError("No player within " + (int) MAX_POUNCE_DISTANCE + " blocks of the spider");
+        Player target = nearest;
+        return startPounce(ctx, speed, target.getName(), it -> reachableTarget(target, it));
     }
 
     private static int setShroud(CommandContext<CommandSourceStack> ctx, boolean on) throws CommandSyntaxException {

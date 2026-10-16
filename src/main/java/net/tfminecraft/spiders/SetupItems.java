@@ -291,6 +291,7 @@ public final class SetupItems {
             // update existing laser
             existing.second().setWorld(player.getWorld());
             existing.second().setPosition(position);
+            existing.second().setHolder(Overloads.getPosition(player));
             existing.second().setVisible(isVisible);
             existing.third().setExpired(false);
         } else {
@@ -300,6 +301,7 @@ public final class SetupItems {
                 new LaserPoint(
                     player.getWorld(),
                     position,
+                    Overloads.getPosition(player),
                     isVisible
                 )
             );

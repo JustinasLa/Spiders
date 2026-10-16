@@ -5,6 +5,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.tfminecraft.spiders.spider.configuration.PaletteEntry;
 import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
+import net.tfminecraft.spiders.spider.configuration.SpiderOptionsLimits;
 import net.tfminecraft.spiders.spider.presets.AnimatedPalettes;
 import net.tfminecraft.spiders.spider.presets.Presets;
 import net.tfminecraft.spiders.spider.presets.SpiderLegModel;
@@ -231,10 +232,15 @@ public final class Symbols {
             ),
             arguments -> {
                 int segmentCount = (Integer) arguments.get("segments");
-                if (segmentCount < 1) throw invalid("\"segments\" must be an integer of at least 1");
+                // checked before building: a huge count would allocate on the server thread
+                if (segmentCount < 1 || segmentCount > SpiderOptionsLimits.MAX_SEGMENTS) {
+                    throw invalid("\"segments\" must be an integer from 1 to " + SpiderOptionsLimits.MAX_SEGMENTS);
+                }
 
                 double segmentLength = (Double) arguments.get("length");
-                if (segmentLength < 0.0) throw invalid("\"length\" must be a number of at least 0");
+                if (!(segmentLength > 0.0 && segmentLength <= SpiderOptionsLimits.MAX_SEGMENT_LENGTH)) {
+                    throw invalid("\"length\" must be a number above 0 and at most " + SpiderOptionsLimits.MAX_SEGMENT_LENGTH);
+                }
 
                 return create.apply(segmentCount, segmentLength);
             }
