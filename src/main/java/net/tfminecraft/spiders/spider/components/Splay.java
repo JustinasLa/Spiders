@@ -20,12 +20,21 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class Splay {
     private Splay() {
     }
+
+    /** Scattered pieces lie on the ground this long, then disappear. */
+    static final long DEBRIS_TICKS = 20L * 30;
+
+    /** Debris not yet cleared, removed at shutdown if the plugin stops first. */
+    private static final Set<BlockDisplay> debris = new LinkedHashSet<>();
+    private static boolean shutdownHookAdded = false;
 
     private static Transformation lerp(Transformation transformation, Transformation newTransform, float lerpAmount) {
 
@@ -64,8 +73,19 @@ public final class Splay {
             RenderEntityTracker.detach(id);
         }
 
-        Core.onPluginShutdown(() -> {
-            for (BlockDisplay entity : entities) entity.remove();
+        debris.addAll(entities);
+        if (!shutdownHookAdded) {
+            shutdownHookAdded = true;
+            Core.onPluginShutdown(() -> {
+                for (BlockDisplay entity : debris) entity.remove();
+                debris.clear();
+            });
+        }
+        Scheduler.runLater(DEBRIS_TICKS, () -> {
+            for (BlockDisplay entity : entities) {
+                entity.remove();
+                debris.remove(entity);
+            }
         });
 
 

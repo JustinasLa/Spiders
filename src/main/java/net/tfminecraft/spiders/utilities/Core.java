@@ -13,6 +13,7 @@ import org.bukkit.util.Vector;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 public final class Core {
     private Core() {
@@ -49,8 +50,16 @@ public final class Core {
         Scheduler.onTick(it -> currentTick++);
     }
 
+    /** Runs every shutdown hook, even after one throws, so the rest still clean up. */
     public static void shutdownCoreUtils(JavaPlugin plugin) {
-        for (Disposable closeable : closeableList) closeable.close();
+        for (Disposable closeable : new ArrayList<>(closeableList)) {
+            try {
+                closeable.close();
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "A shutdown hook failed; the others still ran.", e);
+            }
+        }
+        closeableList.clear();
     }
 
     public static NamespacedKey namespacedID(String id) {

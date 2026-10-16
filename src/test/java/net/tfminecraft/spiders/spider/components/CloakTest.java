@@ -9,6 +9,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterAll;
@@ -100,5 +101,21 @@ class CloakTest {
             return List.of(spectator);
         });
         assertEquals(Material.STONE, material(Cloak.shroudSees(world, piece)));
+    }
+
+    @Test
+    @DisplayName("the rider and vanished staff do not steer the shroud")
+    void theRiderAndVanishedStaffDoNotSteerTheShroud() {
+        Player[] rider = new Player[1];
+        World world = world(w -> {
+            rider[0] = player(new Vector(0.5, 65.0, -5.0), w);
+            Player vanished = player(new Vector(0.5, 65.0, -6.0), w);
+            MetadataValue flag = mock(MetadataValue.class);
+            when(flag.asBoolean()).thenReturn(true);
+            when(vanished.getMetadata("vanished")).thenReturn(List.of(flag));
+            return List.of(rider[0], vanished);
+        });
+        assertEquals(Material.STONE, material(Cloak.shroudSees(world, piece, rider[0])));
+        assertEquals(Material.WATER, material(Cloak.shroudSees(world, piece, null)), "a bystander would see the water");
     }
 }

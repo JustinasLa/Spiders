@@ -99,9 +99,9 @@ public class SoundsAndParticles implements ECSComponent {
         });
     }
 
-    private static boolean isInWater(World world, Vector position) {
+    static boolean isInWater(World world, Vector position) {
         Block block = world.getBlockAt(position.toLocation(world));
-        return block.isLiquid() || (block instanceof Waterlogged waterlogged && waterlogged.isWaterlogged());
+        return block.isLiquid() || (block.getBlockData() instanceof Waterlogged waterlogged && waterlogged.isWaterlogged());
     }
 
 

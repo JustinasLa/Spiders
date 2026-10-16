@@ -49,7 +49,7 @@ public class SpiderRenderer implements ECSComponent {
                 SpiderOptions options = row.second();
                 List<BlockDisplayModelPiece> pieces = piecesTagged(options, "eye");
 
-                if (ThreadLocalRandom.current().nextBoolean()) return;
+                if (ThreadLocalRandom.current().nextBoolean()) continue;
                 for (BlockDisplayModelPiece piece : pieces) {
                     PaletteEntry entry = random(options.getBodyPlan().getEyePalette());
                     piece.setBlock(entry.getBlock());
@@ -64,7 +64,7 @@ public class SpiderRenderer implements ECSComponent {
                 SpiderOptions options = row.second();
                 List<BlockDisplayModelPiece> pieces = piecesTagged(options, "blinking_lights");
 
-                if (ThreadLocalRandom.current().nextBoolean()) return;
+                if (ThreadLocalRandom.current().nextBoolean()) continue;
                 for (BlockDisplayModelPiece piece : pieces) {
                     PaletteEntry entry = random(options.getBodyPlan().getBlinkingPalette());
                     piece.setBlock(entry.getBlock());

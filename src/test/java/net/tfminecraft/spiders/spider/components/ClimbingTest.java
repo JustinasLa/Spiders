@@ -2,7 +2,6 @@ package net.tfminecraft.spiders.spider.components;
 
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.spider.configuration.OrientationMode;
-import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
@@ -121,7 +120,7 @@ class ClimbingTest {
     private Run spawnOnFace(World world, Vector hit, Vector normal, Vector look) {
         Quaternionf orientation = SpiderBody.orientationFrom(normal, look, new Vector(0.0, 0.0, 1.0));
         Run run = spawn(world, 0.8, false, new Vector(), true, orientation);
-        run.body().teleport(new ECSEntity(),
+        run.body().teleport(
             hit.clone().add(normal.clone().multiply(run.gait().getStationary().getBodyHeight())));
         return run;
     }

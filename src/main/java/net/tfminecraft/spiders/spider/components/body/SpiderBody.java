@@ -13,6 +13,7 @@ import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSComponent;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.maths.Maths;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.RayTraceResult;
@@ -43,6 +44,10 @@ public class SpiderBody implements ECSComponent {
 
     /** Ticks left in a leap: the body flies freely, legs reach out instead of holding on. */
     private int leapTicks = 0;
+
+    /** Ticks left in which a shove (hit, wind charge) is stopped by walls. */
+    private int shoveTicks = 0;
+    private static final int SHOVE_TICKS = 20;
 
     private BodyPlan lastAppliedBodyPlan = null;
 
@@ -144,6 +149,12 @@ public class SpiderBody implements ECSComponent {
         return rotationalVelocity;
     }
 
+    /** Knocks the body with [impulse]; for a second it slides to a stop at walls instead of through them. */
+    public void shove(Vector impulse) {
+        velocity.add(impulse);
+        shoveTicks = SHOVE_TICKS;
+    }
+
     public void leap(Vector launchVelocity, int ticks) {
         velocity.copy(launchVelocity);
         leapTicks = ticks;
@@ -233,14 +244,13 @@ public class SpiderBody implements ECSComponent {
         rotationalVelocity.add(a);
     }
 
-    public void teleport(ECSEntity entity, Vector newPosition) {
+    /** Moves the body and its feet by the same offset. */
+    public void teleport(Vector newPosition) {
         Vector diff = newPosition.clone().subtract(position);
 
         position.copy(newPosition);
 
-        SpiderBody body = entity.query(SpiderBody.class);
-        if (body == null) return;
-        for (Leg leg : body.legs) leg.getEndEffector().add(diff);
+        for (Leg leg : legs) leg.getEndEffector().add(diff);
     }
 
     private static Vector getPos(Leg leg) {
@@ -416,12 +426,15 @@ public class SpiderBody implements ECSComponent {
         rotationalVelocity.mul(1 - gait.getRotationalDragCoefficient() * (float) fractionOfLegsGrounded);
         if (onGround) rotationalVelocity.mul(.5f);
 
-        // apply velocity
-        position.add(velocity);
-
         // resolve collision
         Quaternionf scanOrientation = gait.getScanOrientation().get(this);
         Vector down = Maths.rotate(Maths.downVector(), scanOrientation);
+
+        // a shoved spider stops at walls instead of passing through them
+        if (shoveTicks > 0 && !leaping) stopAtWalls(down);
+
+        // apply velocity
+        position.add(velocity);
 
         CollisionResult collision = Geometry.resolveCollision(world, position, down.clone().multiply(velocity.dot(down)));
         if (collision != null) {
@@ -452,6 +465,21 @@ public class SpiderBody implements ECSComponent {
         updatePreferredAngles(gait);
 
         if (leapTicks > 0) leapTicks--;
+        if (shoveTicks > 0) shoveTicks--;
+    }
+
+    /** Room the body keeps from a wall it is pushed against. */
+    private static final double WALL_MARGIN = .25;
+
+    /** Cuts the motion along the surface short of the first block in the way. */
+    private void stopAtWalls(Vector down) {
+        Vector along = velocity.clone().subtract(down.clone().multiply(velocity.dot(down)));
+        double length = along.length();
+        if (length < 1e-6) return;
+        RayTraceResult hit = world.rayTraceBlocks(position.toLocation(world), along, length + WALL_MARGIN, FluidCollisionMode.NEVER, true);
+        if (hit == null) return;
+        double allowed = Math.max(0.0, hit.getHitPosition().distance(position) - WALL_MARGIN);
+        velocity.subtract(along.multiply(1 - allowed / length));
     }
 
     private List<Integer> legsInPolygonalOrder() {

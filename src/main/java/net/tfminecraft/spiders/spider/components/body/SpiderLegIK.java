@@ -26,6 +26,14 @@ public class SpiderLegIK {
 
     private List<IKChainWorldNode3D> nodes = List.of();
 
+    // inputs of the last solve; an unchanged leg reuses its pose instead of solving again
+    private final Vector lastSpiderPosition = new Vector(Double.NaN, Double.NaN, Double.NaN);
+    private final Quaternionf lastSpiderOrientation = new Quaternionf(Float.NaN, Float.NaN, Float.NaN, Float.NaN);
+    private final Vector lastEndEffector = new Vector(Double.NaN, Double.NaN, Double.NaN);
+    private int unchangedSolves = 0;
+    /** Solves with the same inputs before reusing the pose: each solve refines the last one a little further. */
+    private static final int REFINING_SOLVES = 2;
+
     public SpiderLegIK(LegPlan plan, IKChain3D chain, IKChainPose3D pose, IKSolver3D solver, IKTarget3D target) {
         this.plan = plan;
         this.chain = chain;
@@ -67,6 +75,13 @@ public class SpiderLegIK {
     }
 
     public void solve(Vector spiderPosition, Quaternionf spiderOrientation, Vector endEffector) {
+        boolean unchanged = spiderPosition.equals(lastSpiderPosition) && spiderOrientation.equals(lastSpiderOrientation) && endEffector.equals(lastEndEffector);
+        unchangedSolves = unchanged ? unchangedSolves + 1 : 0;
+        if (unchangedSolves > REFINING_SOLVES && !nodes.isEmpty()) return;
+        lastSpiderPosition.copy(spiderPosition);
+        lastSpiderOrientation.set(spiderOrientation);
+        lastEndEffector.copy(endEffector);
+
         pose.getPosition().copy(attachmentPosition(spiderPosition, spiderOrientation));
         pose.getOrientation().set(spiderOrientation).mul(plan.getRestOrientation());
 

@@ -32,7 +32,9 @@ public final class GallopGaitType {
         onGround = onGround || spider.getOnGround();
         if (!onGround) return false;
 
-        Leg pair = spider.getLegs().get(LegLookUp.horizontal(index));
+        // an unpaired leg (odd leg count) walks instead of galloping
+        Leg pair = getOrNull(spider.getLegs(), LegLookUp.horizontal(index));
+        if (pair == null) return WalkGaitType.canMoveLeg(leg);
 
         leg.setPrimary(LegLookUp.isDiagonal1(index) || pair.isDisabled() || !pair.getTarget().isGrounded());
 
