@@ -21,11 +21,22 @@ import org.bukkit.util.Vector;
 
 import java.util.WeakHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.random.RandomGenerator;
 
 public class SoundsAndParticles implements ECSComponent {
     private int timeSinceLastSound = 0;
     private WeakHashMap<Leg, Integer> wetness = new WeakHashMap<>();
     private final int maxWetness = 20 * 3;
+    /** Splash pitches and drips; tests pass a seeded source. */
+    private final RandomGenerator random;
+
+    public SoundsAndParticles() {
+        this(() -> ThreadLocalRandom.current().nextLong());
+    }
+
+    SoundsAndParticles(RandomGenerator random) {
+        this.random = random;
+    }
 
     public int getTimeSinceLastSound() {
         return timeSinceLastSound;
@@ -122,19 +133,19 @@ public class SoundsAndParticles implements ECSComponent {
         if (sounds.timeSinceLastSound > 20) {
             if (justEnteredWater) {
                 float volume = .3f;
-                float pitch = 1.0f + ThreadLocalRandom.current().nextFloat() * 0.1f;
+                float pitch = 1.0f + sounds.random.nextFloat() * 0.1f;
                 Overloads.playSound(world, leg.getEndEffector(), Sound.ENTITY_PLAYER_SPLASH, volume, pitch);
                 sounds.timeSinceLastSound = 0;
             }
             else if (justExitedWater) {
                 float volume = .3f;
-                float pitch = 1f + ThreadLocalRandom.current().nextFloat() * 0.1f;
+                float pitch = 1f + sounds.random.nextFloat() * 0.1f;
                 Overloads.playSound(world, leg.getEndEffector(), Sound.AMBIENT_UNDERWATER_EXIT, volume, pitch);
                 sounds.timeSinceLastSound = 0;
             }
             else if (justBegunMoving && isUnderWater) {
                 float volume = .3f;
-                float pitch = .7f + ThreadLocalRandom.current().nextFloat() * 0.1f;
+                float pitch = .7f + sounds.random.nextFloat() * 0.1f;
                 Overloads.playSound(world, leg.getEndEffector(), Sound.ENTITY_PLAYER_SWIM, volume, pitch);
                 sounds.timeSinceLastSound = 0;
             }
@@ -142,8 +153,8 @@ public class SoundsAndParticles implements ECSComponent {
 
 
         // particles
-        Integer storedWetness = sounds.wetness.get(leg);
-        int wetness = storedWetness != null ? storedWetness : 0;
+        // set for this leg just above
+        int wetness = sounds.wetness.get(leg);
         for (Vector segment : leg.getIk().getSegmentTipPositions()) {
             boolean segmentIsUnderWater = isInWater(world, segment);
 
@@ -160,7 +171,7 @@ public class SoundsAndParticles implements ECSComponent {
             }
 
             if (wetness > 0) {
-                if (ThreadLocalRandom.current().nextInt(0, sounds.maxWetness) > wetness) continue;
+                if (sounds.random.nextInt(0, sounds.maxWetness) > wetness) continue;
 
                 double offset = .0;
                 world.spawnParticle(Particle.FALLING_WATER, location, 1, offset, offset, offset, .1);

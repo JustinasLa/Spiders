@@ -6,6 +6,7 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.Keyed;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
+import org.bukkit.block.BlockType;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -111,6 +112,8 @@ public final class TestRegistryAccess implements RegistryAccess {
         Keyed entry = (Keyed) mock(mockedType(type));
         when(entry.getKey()).thenReturn(key);
         when(entry.key()).thenReturn(key);
+        // block colour tables only offer occluding blocks
+        if (entry instanceof BlockType block) when(block.isOccluding()).thenReturn(true);
         return entry;
     }
 }

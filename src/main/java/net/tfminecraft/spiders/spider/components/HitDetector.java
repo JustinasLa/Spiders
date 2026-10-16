@@ -69,8 +69,8 @@ public class HitDetector implements ECSComponent {
 
                 for (Projectile projectile : projectiles) {
                     if (rider != null && Objects.equals(projectile.getShooter(), rider)) continue;
+                    // not null: only projectiles of a known kind were collected above
                     ProjectileKind kind = ProjectileKind.of(projectile);
-                    if (kind == null) continue;
 
                     Vector from = projectile.getLocation().toVector();
                     Vector velocity = projectile.getVelocity();
@@ -96,11 +96,12 @@ public class HitDetector implements ECSComponent {
                             if (projectile instanceof Trident trident) trident.setHasDealtDamage(true);
                         }
                         case THROWN -> {
-                            ItemStack item = projectile instanceof ThrowableProjectile throwable ? throwable.getItem() : null;
+                            // THROWN is only ever a snowball or an egg
+                            ItemStack item = ((ThrowableProjectile) projectile).getItem();
                             if (item != null) spider.getWorld().spawnParticle(Particle.ITEM, point.toLocation(spider.getWorld()), 8, .1, .1, .1, .05, item);
                             projectile.remove();
                         }
-                        case WIND_CHARGE -> {
+                        default -> { // WIND_CHARGE, the only kind left
                             Location location = projectile.getLocation();
                             location.set(point.getX(), point.getY(), point.getZ());
                             projectile.teleport(location);

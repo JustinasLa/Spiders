@@ -4,7 +4,10 @@ import net.tfminecraft.spiders.StaffAccess;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LightningStrike;
 import org.bukkit.entity.Pig;
+import org.bukkit.entity.PigZombie;
+import org.bukkit.event.entity.PigZapEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityMountEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -111,6 +114,71 @@ class StaffMountTest {
         EntityMountEvent event = new EntityMountEvent(mock(Player.class), mock(Pig.class));
         listener.onMount(event);
         assertFalse(event.isCancelled());
+    }
+
+    @Test
+    @DisplayName("staff right-clicking the seat marker of the second spider are seated on it")
+    void staffRightClickingTheSeatMarkerOfTheSecondSpider() {
+        ECS twoSpiders = new ECS();
+        twoSpiders.spawn(new Mountable());
+        twoSpiders.spawn(mountable);
+        Player player = staff();
+        PlayerInteractEntityEvent event = new PlayerInteractEntityEvent(player, marker, EquipmentSlot.HAND);
+        new StaffMountListener(twoSpiders).onInteract(event);
+        assertTrue(event.isCancelled());
+        verify(marker).addPassenger(player);
+
+        PlayerInteractEntityEvent other = new PlayerInteractEntityEvent(player, mock(Pig.class), EquipmentSlot.HAND);
+        new StaffMountListener(twoSpiders).onInteract(other);
+        assertFalse(other.isCancelled());
+    }
+
+    @Test
+    @DisplayName("a spider without a seat marker yet cannot be ridden")
+    void aSpiderWithoutASeatMarkerYetCannotBeRidden() {
+        ECS app = new ECS();
+        Pig lonePig = mock(Pig.class);
+        Mountable unseated = new Mountable();
+        unseated.setCurrentPig(lonePig);
+        app.spawn(unseated);
+        StaffMountListener lone = new StaffMountListener(app);
+        Player player = staff();
+
+        PlayerInteractEntityEvent interact = new PlayerInteractEntityEvent(player, lonePig, EquipmentSlot.HAND);
+        lone.onInteract(interact);
+        assertTrue(interact.isCancelled());
+        EntityMountEvent mount = new EntityMountEvent(player, lonePig);
+        lone.onMount(mount);
+        assertTrue(mount.isCancelled());
+        verify(player, never()).leaveVehicle();
+    }
+
+    @Test
+    @DisplayName("staff may sit on the seat marker itself, but not take an occupied seat through the pig")
+    void staffMaySitOnTheMarkerButNotTakeAnOccupiedSeat() {
+        Player player = staff();
+        EntityMountEvent direct = new EntityMountEvent(player, marker);
+        listener.onMount(direct);
+        assertFalse(direct.isCancelled());
+
+        Player sitting = staff();
+        when(marker.getPassengers()).thenReturn(List.of(sitting));
+        EntityMountEvent throughPig = new EntityMountEvent(player, pig);
+        listener.onMount(throughPig);
+        assertTrue(throughPig.isCancelled());
+        verify(marker, never()).addPassenger(any());
+    }
+
+    @Test
+    @DisplayName("lightning can't turn the seat pig into a piglin")
+    void lightningCantTurnTheSeatPigIntoAPiglin() {
+        PigZapEvent zap = new PigZapEvent(pig, mock(LightningStrike.class), mock(PigZombie.class));
+        listener.onZap(zap);
+        assertTrue(zap.isCancelled());
+
+        PigZapEvent farm = new PigZapEvent(mock(Pig.class), mock(LightningStrike.class), mock(PigZombie.class));
+        listener.onZap(farm);
+        assertFalse(farm.isCancelled());
     }
 
     @Test

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.random.RandomGenerator;
 import java.util.function.Consumer;
 
 public class Cloak implements ECSComponent {
@@ -48,6 +49,17 @@ public class Cloak implements ECSComponent {
     private final WeakHashMap<Object, Integer> seenAt = new WeakHashMap<>();
     /** Each piece looks again this often (ticks), staggered across pieces. */
     static final int LOOK_TICKS = 4;
+
+    /** Shimmer and glitch timing; tests pass a seeded source. */
+    private final RandomGenerator random;
+
+    public Cloak() {
+        this(() -> ThreadLocalRandom.current().nextLong());
+    }
+
+    Cloak(RandomGenerator random) {
+        this.random = random;
+    }
 
     public boolean getActive() {
         return active;
@@ -93,7 +105,7 @@ public class Cloak implements ECSComponent {
 
         Oklab targetColor = getTargetColor(id, world, position, originalColor, currentColor);
 
-        float lerpAmount = (float) options.getLerpSpeed() + ((float) Math.random() - 0.5f) * (float) options.getLerpRandomness();
+        float lerpAmount = (float) options.getLerpSpeed() + ((float) random.nextDouble() - 0.5f) * (float) options.getLerpRandomness();
         Oklab newColor = moveTowards(
             currentColor.lerp(targetColor, Maths.clamp(lerpAmount, 0f, 1f)),
             targetColor, (float) options.getMoveSpeed());
@@ -144,7 +156,7 @@ public class Cloak implements ECSComponent {
             SeriesScheduler scheduler = new SeriesScheduler();
 
             randomSleep(scheduler, 0, 3);
-            int glitches = (int) (Math.random() * 4);
+            int glitches = (int) (random.nextDouble() * 4);
             for (int i = 0; i < glitches; i++) {
                 scheduler.run(() -> random(glitch).accept(id));
                 scheduler.sleep(2L);
@@ -155,11 +167,11 @@ public class Cloak implements ECSComponent {
                 cloakOverride.put(id, null);
             });
 
-            if (Math.random() < 1.0 / 6) continue;
+            if (random.nextDouble() < 1.0 / 6) continue;
 
             randomSleep(scheduler, 0, 3);
 
-            int flashes = (int) (Math.random() * 3);
+            int flashes = (int) (random.nextDouble() * 3);
             for (int i = 0; i < flashes; i++) {
                 scheduler.run(() -> {
                     cloakOverride.put(id, BlockColors.findBlockWithColor(random(originalColors).toRGB(), options.getAllowCustomBrightness()).getBlock());
@@ -181,12 +193,12 @@ public class Cloak implements ECSComponent {
         });
     }
 
-    private static void randomSleep(SeriesScheduler scheduler, int min, int max) {
-        scheduler.sleep((long) (min + Math.random() * (max - min)));
+    private void randomSleep(SeriesScheduler scheduler, int min, int max) {
+        scheduler.sleep((long) (min + random.nextDouble() * (max - min)));
     }
 
-    private static <T> T random(List<T> list) {
-        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
+    private <T> T random(List<T> list) {
+        return list.get(random.nextInt(list.size()));
     }
 
     /** Players further than this from a piece do not steer the shroud; it copies the ground instead. */

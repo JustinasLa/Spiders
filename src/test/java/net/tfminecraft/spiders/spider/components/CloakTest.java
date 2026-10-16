@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
@@ -117,5 +119,36 @@ class CloakTest {
         });
         assertEquals(Material.STONE, material(Cloak.shroudSees(world, piece, rider[0])));
         assertEquals(Material.WATER, material(Cloak.shroudSees(world, piece, null)), "a bystander would see the water");
+    }
+
+    @Test
+    @DisplayName("the nearest player steers it even when listed first, and a cleared vanish flag counts")
+    void theNearestPlayerSteersItEvenWhenListedFirst() {
+        World world = world(w -> {
+            Player near = player(new Vector(0.5, 65.0, -5.0), w);
+            MetadataValue cleared = mock(MetadataValue.class);
+            when(near.getMetadata("vanished")).thenReturn(List.of(cleared));
+            return List.of(near, player(new Vector(200.5, 65.0, 0.5), w));
+        });
+        assertEquals(Material.WATER, material(Cloak.shroudSees(world, piece)));
+    }
+
+    @Test
+    @DisplayName("a player standing in the piece has no line of sight, so it copies the ground")
+    void aPlayerStandingInThePieceHasNoLineOfSight() {
+        World world = world(w -> List.of(player(piece.clone(), w)));
+        assertEquals(Material.STONE, material(Cloak.shroudSees(world, piece)));
+        verify(world).rayTraceBlocks(any(Location.class), eq(new Vector(0.0, -1.0, 0.0)), eq(5.0), eq(FluidCollisionMode.ALWAYS), eq(true));
+    }
+
+    @Test
+    @DisplayName("open air or a hit without a block shows nothing")
+    void openAirOrAHitWithoutABlockShowsNothing() {
+        World world = mock(World.class);
+        when(world.getPlayers()).thenReturn(List.of());
+        assertNull(Cloak.shroudSees(world, piece));
+        when(world.rayTraceBlocks(any(Location.class), any(Vector.class), anyDouble(), any(FluidCollisionMode.class), eq(true)))
+            .thenReturn(new RayTraceResult(new Vector(), BlockFace.UP));
+        assertNull(Cloak.shroudSees(world, piece));
     }
 }
