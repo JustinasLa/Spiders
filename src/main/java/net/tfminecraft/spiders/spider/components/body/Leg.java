@@ -32,6 +32,9 @@ public class Leg {
     private static final int WRAPPED_TARGET_ID = -3;
     /** Ticks between ground scans for a leg that isn't stepping (mid-leap or disabled). */
     private static final int IDLE_SCAN_TICKS = 3;
+    /** Ticks a still leg reuses its last ground scan and collision check before casting them again, so block changes are still noticed. */
+    public static final int SCAN_REFRESH_TICKS = 5;
+    private static final float ORIENTATION_EPSILON = 1e-6f;
 
     private final ECS ecs;
     private final ECSEntity entity;
@@ -56,6 +59,11 @@ public class Leg {
     private Vector previousEndEffector;
 
     private final SpiderLegIK ik;
+
+    // ray cache: a leg whose situation hasn't changed reuses its last answers for a few ticks
+    private int ticks;
+    private final ScanCache scanCache = new ScanCache();
+    private final CollisionCache collisionCache = new CollisionCache();
 
     private boolean touchingGround;
     private boolean isMoving;
@@ -266,6 +274,7 @@ public class Leg {
     }
 
     public void update() {
+        ticks += 1;
         updateMovement();
         ik.solve(spider.getPosition(), spider.getOrientation(), endEffector);
     }
@@ -318,7 +327,7 @@ public class Leg {
         // resolve ground collision
         Quaternionf scanOrientation = options.getGait().getScanOrientation().get(spider);
         Vector down = Maths.rotate(Maths.downVector(), scanOrientation);
-        CollisionResult collision = Geometry.resolveCollision(spider.getWorld(), endEffector, down);
+        CollisionResult collision = resolveGroundCollision(down);
         if (collision != null) {
             // ignore collision if it would push the end effector further from the target
             // e.g. when grazing an obstacle
@@ -338,13 +347,26 @@ public class Leg {
      * and to keep a raised foot clear, so it is refreshed every {@link #IDLE_SCAN_TICKS} ticks.
      */
     private boolean shouldScanGround() {
-        if (!isDisabled && spider.getLeapTicks() <= 0) return true;
+        if (!isScanThrottled()) return true;
         if (idleScanCountdown > 0) {
             idleScanCountdown--;
             return false;
         }
         idleScanCountdown = IDLE_SCAN_TICKS - 1;
         return true;
+    }
+
+    /** Mid-leap or disabled: the leg isn't stepping, so it only scans every {@link #IDLE_SCAN_TICKS} ticks. */
+    private boolean isScanThrottled() {
+        return isDisabled || spider.getLeapTicks() > 0;
+    }
+
+    /** {@link Geometry#resolveCollision} for the foot; a still foot whose ray hasn't moved reuses the last answer. */
+    private CollisionResult resolveGroundCollision(Vector down) {
+        if (!isMoving && collisionCache.matches(endEffector, down)) return collisionCache.result;
+        CollisionResult result = Geometry.resolveCollision(spider.getWorld(), endEffector, down);
+        collisionCache.remember(endEffector, down, result);
+        return result;
     }
 
     private void applyBodyMotion(Vector point) {
@@ -449,7 +471,16 @@ public class Leg {
     }
 
 
+    /**
+     * The foothold the ground scan finds; a leg whose scan inputs haven't changed reuses its last result for up to {@link #SCAN_REFRESH_TICKS}.
+     * A throttled leg already skips most scans, so the ones it runs are always fresh and still notice block changes in time.
+     */
     public LegTarget locateGroundTarget() {
+        if (isScanThrottled() || !scanCache.matches()) scanCache.remember(scanGroundTarget());
+        return scanCache.copy();
+    }
+
+    private LegTarget scanGroundTarget() {
         if (!options.getGait().getGrip()) return locateScanTarget();
 
         // Climbing: a face between the body and the foothold (wall or ceiling ahead) comes first,
@@ -552,6 +583,85 @@ public class Leg {
             if (options.getGait().getGrip() && hit.getHitPosition().distanceSquared(start) < 1e-6) return null;
 
             return new LegTarget(hit.getHitPosition(), true, id);
+        }
+    }
+
+    /** The last ground scan and everything it read; the forward direction it reads follows from the body's orientation. */
+    private final class ScanCache {
+        private boolean valid = false;
+        private int tick;
+        private LegTarget result;
+
+        private final Vector spiderPosition = new Vector();
+        private final Quaternionf spiderOrientation = new Quaternionf();
+        private final Vector scanStart = new Vector();
+        private final Vector scanEnd = new Vector();
+        private final Vector lookAhead = new Vector();
+        private final Vector up = new Vector();
+        private final Vector comfortStart = new Vector();
+        private final Vector comfortEnd = new Vector();
+        private double comfortRadius;
+        private boolean grip;
+        private boolean alternativeGround;
+        private double heightBias;
+
+        boolean matches() {
+            if (!valid || ticks - tick >= SCAN_REFRESH_TICKS) return false;
+            Gait gait = options.getGait();
+            return grip == gait.getGrip() && alternativeGround == gait.getLegScanAlternativeGround() && heightBias == gait.getLegScanHeightBias() &&
+                spiderPosition.equals(spider.getPosition()) && spiderOrientation.equals(spider.getOrientation(), ORIENTATION_EPSILON) &&
+                scanStart.equals(scanLine.getPoint1()) && scanEnd.equals(scanLine.getPoint2()) &&
+                lookAhead.equals(lookAheadPosition) && up.equals(surfaceUp) &&
+                comfortStart.equals(comfortZone.getPoint1()) && comfortEnd.equals(comfortZone.getPoint2()) && comfortRadius == comfortZone.getRadius();
+        }
+
+        void remember(LegTarget result) {
+            Gait gait = options.getGait();
+            this.valid = true;
+            this.tick = ticks;
+            this.result = result;
+            spiderPosition.copy(spider.getPosition());
+            spiderOrientation.set(spider.getOrientation());
+            scanStart.copy(scanLine.getPoint1());
+            scanEnd.copy(scanLine.getPoint2());
+            lookAhead.copy(lookAheadPosition);
+            up.copy(surfaceUp);
+            comfortStart.copy(comfortZone.getPoint1());
+            comfortEnd.copy(comfortZone.getPoint2());
+            comfortRadius = comfortZone.getRadius();
+            grip = gait.getGrip();
+            alternativeGround = gait.getLegScanAlternativeGround();
+            heightBias = gait.getLegScanHeightBias();
+        }
+
+        /** The cached result with its own position, since target positions are mutable. */
+        LegTarget copy() {
+            return result == null ? null : new LegTarget(result.getPosition().clone(), result.isGrounded(), result.getId());
+        }
+    }
+
+    /** The last collision ray: a pure function of the foot and its direction, so exact inputs give the same answer until a block changes. */
+    private final class CollisionCache {
+        private boolean valid = false;
+        private int tick;
+        private CollisionResult result;
+        private final Vector position = new Vector();
+        private final Vector direction = new Vector();
+
+        boolean matches(Vector position, Vector direction) {
+            return valid && ticks - tick < SCAN_REFRESH_TICKS && same(this.position, position) && same(this.direction, direction);
+        }
+
+        void remember(Vector position, Vector direction, CollisionResult result) {
+            this.valid = true;
+            this.tick = ticks;
+            this.result = result;
+            this.position.copy(position);
+            this.direction.copy(direction);
+        }
+
+        private static boolean same(Vector a, Vector b) {
+            return a.getX() == b.getX() && a.getY() == b.getY() && a.getZ() == b.getZ();
         }
     }
 
