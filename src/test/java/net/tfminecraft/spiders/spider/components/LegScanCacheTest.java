@@ -113,4 +113,30 @@ class LegScanCacheTest {
             assertTrue(noticed > 0, "delay=" + delay + " still targets " + leg.getGroundTarget().getPosition());
         }
     }
+
+    @Test
+    @DisplayName("a block appearing under a still disabled foot is noticed within the refresh window")
+    void aBlockAppearingUnderADisabledFootIsNoticed() {
+        // a disabled leg only scans every few ticks; every phase of that and of the refresh window
+        for (int delay = 0; delay < 3 * Leg.SCAN_REFRESH_TICKS; delay++) {
+            int[][] block = {null};
+            Room room = new Room((x, y, z) -> y < 0 || (block[0] != null && x == block[0][0] && y == 0 && z == block[0][1]));
+            Run run = spawn(room.world(), 1.0, false, new Vector(0.5, 0.0, 0.5), false);
+            for (int tick = 0; tick < SETTLE_TICKS; tick++) run.app().update();
+            Leg leg = run.body().getLegs().get(0);
+            leg.setDisabled(true);
+            for (int tick = 0; tick < 40 + delay; tick++) run.app().update(); // until the raised foot is still
+
+            Vector ground = leg.getGroundTarget().getPosition().clone();
+            assertEquals(0.0, ground.getY(), 1e-6, "Ground not on the floor: " + ground);
+            block[0] = new int[]{(int) Math.floor(ground.getX()), (int) Math.floor(ground.getZ())};
+
+            int noticed = -1;
+            for (int tick = 1; tick <= Leg.SCAN_REFRESH_TICKS && noticed < 0; tick++) {
+                run.app().update();
+                if (leg.getGroundTarget().getPosition().getY() > 1.0 - 1e-6) noticed = tick;
+            }
+            assertTrue(noticed > 0, "delay=" + delay + " still targets " + leg.getGroundTarget().getPosition());
+        }
+    }
 }

@@ -347,13 +347,18 @@ public class Leg {
      * and to keep a raised foot clear, so it is refreshed every {@link #IDLE_SCAN_TICKS} ticks.
      */
     private boolean shouldScanGround() {
-        if (!isDisabled && spider.getLeapTicks() <= 0) return true;
+        if (!isScanThrottled()) return true;
         if (idleScanCountdown > 0) {
             idleScanCountdown--;
             return false;
         }
         idleScanCountdown = IDLE_SCAN_TICKS - 1;
         return true;
+    }
+
+    /** Mid-leap or disabled: the leg isn't stepping, so it only scans every {@link #IDLE_SCAN_TICKS} ticks. */
+    private boolean isScanThrottled() {
+        return isDisabled || spider.getLeapTicks() > 0;
     }
 
     /** {@link Geometry#resolveCollision} for the foot; a still foot whose ray hasn't moved reuses the last answer. */
@@ -466,9 +471,12 @@ public class Leg {
     }
 
 
-    /** The foothold the ground scan finds; a leg whose scan inputs haven't changed reuses its last result for up to {@link #SCAN_REFRESH_TICKS}. */
+    /**
+     * The foothold the ground scan finds; a leg whose scan inputs haven't changed reuses its last result for up to {@link #SCAN_REFRESH_TICKS}.
+     * A throttled leg already skips most scans, so the ones it runs are always fresh and still notice block changes in time.
+     */
     public LegTarget locateGroundTarget() {
-        if (!scanCache.matches()) scanCache.remember(scanGroundTarget());
+        if (isScanThrottled() || !scanCache.matches()) scanCache.remember(scanGroundTarget());
         return scanCache.copy();
     }
 
