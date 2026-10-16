@@ -8,6 +8,7 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 public final class Scheduler {
     private Scheduler() {
@@ -57,9 +58,26 @@ public final class Scheduler {
 
         static {
             interval(0, 1, it -> {
-                for (Runnable handler : new ArrayList<>(main)) handler.run();
-                for (Runnable handler : new ArrayList<>(end)) handler.run();
+                runAll(main);
+                runAll(end);
             });
         }
+
+        /** A throwing handler is logged and skipped; the rest of the tick (e.g. display cleanup) still runs. */
+        private static void runAll(List<Runnable> handlers) {
+            for (Runnable handler : new ArrayList<>(handlers)) {
+                try {
+                    handler.run();
+                } catch (RuntimeException e) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastErrorLog < ERROR_LOG_INTERVAL_MS) continue;
+                    lastErrorLog = now;
+                    Core.getCurrentPlugin().getLogger().log(Level.SEVERE, "A tick handler failed; the others carried on. Repeats are muted for a minute.", e);
+                }
+            }
+        }
+
+        private static long lastErrorLog = Long.MIN_VALUE / 2;
+        private static final long ERROR_LOG_INTERVAL_MS = 60_000;
     }
 }

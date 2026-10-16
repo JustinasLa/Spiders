@@ -7,6 +7,8 @@ public class ECSEntity implements ECSQueryable {
     private final List<ECSComponent> components = new ArrayList<>();
 
     private boolean scheduledForRemoval = false;
+    /** Asleep entities keep their state but are left out of the systems until they wake. */
+    private boolean asleep = false;
 
     public List<ECSComponent> getComponents() {
         return components;
@@ -18,6 +20,14 @@ public class ECSEntity implements ECSQueryable {
 
     public void setScheduledForRemoval(boolean scheduledForRemoval) {
         this.scheduledForRemoval = scheduledForRemoval;
+    }
+
+    public boolean isAsleep() {
+        return asleep;
+    }
+
+    public void setAsleep(boolean asleep) {
+        this.asleep = asleep;
     }
 
     public void remove() {

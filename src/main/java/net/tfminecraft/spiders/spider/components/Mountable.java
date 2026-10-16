@@ -73,6 +73,8 @@ public class Mountable implements ECSComponent {
                 ECSEntity entity = row.fourth();
 
                 Player player = mountable.getRider();
+                Cloak cloak = entity.query(Cloak.class);
+                if (cloak != null) cloak.setRider(player);
                 if (player == null) {
                     if (mountable.getSprintGallop()) setSprintGallop(mountable, options, false);
                     continue;

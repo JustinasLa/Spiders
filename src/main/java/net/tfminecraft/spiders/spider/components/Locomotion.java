@@ -44,7 +44,7 @@ public class Locomotion implements ECSComponent {
     public void walk(Vector velocity, int priority) {
         if (priority < walkPriority) return;
         walkPriority = priority;
-        walkVelocity = velocity;
+        walkVelocity = velocity.clone();
     }
 
     public void walk(Vector velocity) {
@@ -54,7 +54,7 @@ public class Locomotion implements ECSComponent {
     public void face(Vector direction, int priority) {
         if (priority < facePriority) return;
         facePriority = priority;
-        faceDirection = direction;
+        faceDirection = direction.clone();
     }
 
     public void face(Vector direction) {
@@ -104,6 +104,10 @@ public class Locomotion implements ECSComponent {
 
 
     public static void rotateTowards(SpiderBody spider, Vector targetVector, Gait gait) {
+        // no direction to face (e.g. standing on the point it was sent to): keep the current heading
+        if (!(targetVector.lengthSquared() > 1e-12) || !Double.isFinite(targetVector.lengthSquared())) {
+            targetVector = Maths.rotate(Maths.forwardVector(), spider.getPreferredOrientation());
+        }
         Quaternionf facing = new Quaternionf().rotationTo(Maths.forwardVector().toVector3f(), targetVector.toVector3f());
 
         Vector3f relativeEuler = Geometry.getYXZRelative(facing, spider.getPreferredOrientation());

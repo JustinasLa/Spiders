@@ -79,7 +79,10 @@ public final class LaserPoint implements ECSComponent {
                 Locomotion locomotion = spiderEntity.query(Locomotion.class);
                 if (locomotion == null) continue;
 
-                Vector direction = nearestLaser.getPosition().clone().subtract(spider.getPosition()).normalize();
+                Vector offset = nearestLaser.getPosition().clone().subtract(spider.getPosition());
+                // already standing on the point: nothing to face or walk towards
+                if (offset.lengthSquared() < 1e-8) continue;
+                Vector direction = offset.normalize();
                 locomotion.face(direction, Locomotion.LASER_PRIORITY);
 
                 // only walk while far enough away to stop in time

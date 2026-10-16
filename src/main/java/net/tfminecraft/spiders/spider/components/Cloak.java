@@ -6,6 +6,7 @@ import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.block_colors.BlockColorMatch;
 import net.tfminecraft.spiders.utilities.block_colors.BlockColors;
+import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.colors.Oklab;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSComponent;
@@ -23,6 +24,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
@@ -38,6 +40,14 @@ public class Cloak implements ECSComponent {
     private WeakHashMap<Object, Oklab> cloakColor = new WeakHashMap<>();
     private WeakHashMap<Object, BlockData> cloakOverride = new WeakHashMap<>();
     private boolean cloakGlitching = false;
+    /** Whoever rides the spider; the shroud imitates what others see, not the rider. */
+    private Player rider = null;
+
+    // what each piece last saw, and when: a ray per piece every tick is too costly
+    private final WeakHashMap<Object, BlockData> seen = new WeakHashMap<>();
+    private final WeakHashMap<Object, Integer> seenAt = new WeakHashMap<>();
+    /** Each piece looks again this often (ticks), staggered across pieces. */
+    static final int LOOK_TICKS = 4;
 
     public boolean getActive() {
         return active;
@@ -45,6 +55,10 @@ public class Cloak implements ECSComponent {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public void setRider(Player rider) {
+        this.rider = rider;
     }
 
     public void toggleCloak(ECS app, ECSEntity entity) {
@@ -77,7 +91,7 @@ public class Cloak implements ECSComponent {
         Oklab storedColor = cloakColor.get(id);
         Oklab currentColor = storedColor != null ? storedColor : originalColor;
 
-        Oklab targetColor = getTargetColor(world, position, originalColor, currentColor);
+        Oklab targetColor = getTargetColor(id, world, position, originalColor, currentColor);
 
 
         float lerpAmount = (float) options.getLerpSpeed() + ((float) Math.random() - 0.5f) * (float) options.getLerpRandomness();
@@ -89,16 +103,27 @@ public class Cloak implements ECSComponent {
         else cloakColor.put(id, newColor);
     }
 
-    private Oklab getTargetColor(World world, Vector position, Oklab originalColor, Oklab currentColor) {
+    private Oklab getTargetColor(Object id, World world, Vector position, Oklab originalColor, Oklab currentColor) {
         if (!active) return originalColor;
 
-        BlockData block = shroudSees(world, position);
+        BlockData block = lookBehind(id, world, position);
         if (block == null) return currentColor;
         int lightLevel = 15;
         Color color = BlockColors.getBlockColor(block, lightLevel);
         return color != null ? Oklab.toOklab(color) : currentColor;
     }
 
+
+    private BlockData lookBehind(Object id, World world, Vector position) {
+        int now = Core.getCurrentTick();
+        Integer at = seenAt.get(id);
+        if (at != null && now >= at && now - at < LOOK_TICKS) return seen.get(id);
+        BlockData block = shroudSees(world, position, rider);
+        seen.put(id, block);
+        // the first look is backdated by up to LOOK_TICKS - 1 so the pieces don't all look on the same tick
+        seenAt.put(id, at == null ? now - Math.floorMod(id.hashCode(), LOOK_TICKS) : now);
+        return block;
+    }
 
     public void breakCloak(CloakOptions options) {
         cloakGlitching = true;
@@ -199,15 +224,20 @@ public class Cloak implements ECSComponent {
         });
     }
 
-    /**
-     * The block a shroud piece at [position] imitates: what lies behind it as seen by the nearest player
-     * in this world, or the ground beneath when nobody is close. Water and lava surfaces count.
-     */
     public static BlockData shroudSees(World world, Vector position) {
+        return shroudSees(world, position, null);
+    }
+
+    /**
+     * The block a shroud piece at {@code position} imitates: what lies behind it as seen by the nearest
+     * player in this world, or the ground beneath when nobody is close. Water and lava surfaces count.
+     * Spectators, vanished staff and the spider's {@code rider} don't count as viewers.
+     */
+    public static BlockData shroudSees(World world, Vector position, Player rider) {
         Player viewer = null;
         double viewerDistance = 0.0;
         for (Player player : world.getPlayers()) {
-            if (player.getGameMode() == GameMode.SPECTATOR) continue;
+            if (player.getGameMode() == GameMode.SPECTATOR || player.equals(rider) || isVanished(player)) continue;
             double distance = Overloads.getEyePosition(player).distanceSquared(position);
             if (viewer == null || Double.compare(viewerDistance, distance) > 0) {
                 viewer = player;
@@ -223,6 +253,14 @@ public class Cloak implements ECSComponent {
         if (hit == null) return null;
         Block hitBlock = hit.getHitBlock();
         return hitBlock != null ? hitBlock.getBlockData() : null;
+    }
+
+    /** Vanish plugins (SuperVanish, PremiumVanish, Essentials) mark vanished players with this metadata. */
+    static boolean isVanished(Player player) {
+        for (MetadataValue value : player.getMetadata("vanished")) {
+            if (value.asBoolean()) return true;
+        }
+        return false;
     }
 
     private static RayTraceResult surfaceCast(World world, Vector position, Vector direction, double distance) {

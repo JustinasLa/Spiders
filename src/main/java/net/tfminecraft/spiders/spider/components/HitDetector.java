@@ -121,7 +121,7 @@ public class HitDetector implements ECSComponent {
 
     static void knockBack(SpiderBody spider, SpiderOptions options, Vector direction, Vector point, double weight) {
         Gait gait = options.getGait();
-        spider.getVelocity().add(direction.clone().multiply(gait.getTridentKnockBack() * weight));
+        spider.shove(direction.clone().multiply(gait.getTridentKnockBack() * weight));
 
         // spin about the vertical, more for hits far from straight up
         Vector hitDirection = spider.getPosition().clone().subtract(point).normalize();

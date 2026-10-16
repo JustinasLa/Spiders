@@ -106,7 +106,7 @@ public final class SetupCommands {
                 if (body == null) return SUCCESS;
                 Vector newPosition = body.getPosition().clone();
                 newPosition.setY(newPosition.getY() + height);
-                body.teleport(spider, newPosition);
+                body.teleport(newPosition);
 
                 return SUCCESS;
             })))

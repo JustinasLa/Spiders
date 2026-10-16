@@ -12,7 +12,9 @@ import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Matrix4f;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 public final class RenderUtilities {
@@ -21,12 +23,20 @@ public final class RenderUtilities {
 
 
     public static void interpolateTransform(Display display, Transformation transformation) {
+        lastMatrix.remove(display);
         if (Objects.equals(display.getTransformation(), transformation)) return;
         display.setTransformation(transformation);
         display.setInterpolationDelay(0);
     }
 
+    /** The matrix each display was last given, so an unchanged one isn't decomposed and compared again. */
+    private static final Map<Display, Matrix4f> lastMatrix = new WeakHashMap<>();
+
     public static void interpolateTransform(Display display, Matrix4f matrix) {
+        Matrix4f last = lastMatrix.get(display);
+        if (last != null && last.equals(matrix)) return;
+        lastMatrix.put(display, new Matrix4f(matrix));
+
         Transformation oldTransformation = display.getTransformation();
         display.setTransformationMatrix(matrix);
 

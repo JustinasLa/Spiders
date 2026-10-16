@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.utilities.rendering;
 
+import io.papermc.paper.entity.TeleportFlag;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
@@ -52,7 +53,8 @@ public class RenderEntity<T extends Entity> implements RenderItem {
         T entity = RenderEntityTracker.get(handle, clazz);
 
         if (entity != null) {
-            if (!entity.isInsideVehicle()) entity.teleport(location);
+            // a seat carries its rider along; unmoved entities aren't sent again
+            if (!entity.isInsideVehicle() && !isAt(entity, location)) entity.teleport(location, TeleportFlag.EntityState.RETAIN_PASSENGERS);
             update.accept(entity);
         } else {
             Consumer<T> initializer = it -> {
@@ -62,5 +64,12 @@ public class RenderEntity<T extends Entity> implements RenderItem {
             };
             RenderEntityTracker.put(handle, location.getWorld().spawn(location, clazz, initializer));
         }
+    }
+
+    private static boolean isAt(Entity entity, Location location) {
+        Location current = entity.getLocation();
+        return current.getWorld() == location.getWorld()
+            && current.getX() == location.getX() && current.getY() == location.getY() && current.getZ() == location.getZ()
+            && current.getYaw() == location.getYaw() && current.getPitch() == location.getPitch();
     }
 }
