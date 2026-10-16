@@ -18,7 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mockingDetails;
 
-/** Legs that aren't stepping (mid-leap or disabled) only rescan the ground every few ticks. */
+/**
+ * Legs that aren't stepping (mid-leap or disabled) only rescan the ground every few ticks.
+ * A still leg may also reuse its last scan (see {@code LegScanCacheTest}), so the spider walks where a scan must cast rays.
+ */
 class LegScanTest {
     /** Mirrors {@code Leg.IDLE_SCAN_TICKS}. */
     private static final int IDLE_SCAN_TICKS = 3;
@@ -49,6 +52,12 @@ class LegScanTest {
             .toList();
     }
 
+    /** One tick walking forward, so every leg's scan inputs change and a scan always casts its rays. */
+    private List<Invocation> walkTick(Run run, World world) {
+        run.locomotion().walk(run.body().forwardDirection().multiply(run.gait().getMaxSpeed()));
+        return tick(run, world);
+    }
+
     /** Whether {@code leg} cast its main scan ray (from the start of its scan line) this tick. */
     private boolean scanned(Leg leg, List<Invocation> rays) {
         Vector start = leg.getScanLine().getPoint1();
@@ -72,8 +81,9 @@ class LegScanTest {
         Run run = spawn(world, 0.8, true, new Vector(.5, 0.0, .5), false);
         for (int i = 0; i < 40; i++) run.app().update(); // settle
         List<Leg> legs = run.body().getLegs();
-        List<Invocation> standing = tick(run, world);
-        for (Leg leg : legs) assertTrue(scanned(leg, standing), "A standing leg must scan every tick");
+        walkTick(run, world); // the body only starts moving the tick after it is told to walk
+        List<Invocation> walking = walkTick(run, world);
+        for (Leg leg : legs) assertTrue(scanned(leg, walking), "A walking leg must scan every tick");
 
         run.body().leap(new Vector(0.0, .5, .2), 40);
         int[] scans = new int[legs.size()];
@@ -117,7 +127,7 @@ class LegScanTest {
         int disabledScans = 0;
         int enabledScans = 0;
         for (int i = 0; i < ticks; i++) {
-            List<Invocation> rays = tick(run, world);
+            List<Invocation> rays = walkTick(run, world);
             if (scanned(disabled, rays)) disabledScans++;
             if (scanned(enabled, rays)) enabledScans++;
         }
@@ -130,6 +140,6 @@ class LegScanTest {
 
         // re-enabled, it scans straight away
         disabled.setDisabled(false);
-        assertTrue(scanned(disabled, tick(run, world)), "Re-enabled leg did not rescan");
+        assertTrue(scanned(disabled, walkTick(run, world)), "Re-enabled leg did not rescan");
     }
 }
