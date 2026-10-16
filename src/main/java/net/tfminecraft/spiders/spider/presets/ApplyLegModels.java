@@ -15,7 +15,6 @@ import java.util.List;
 public final class ApplyLegModels {
     private ApplyLegModels() {}
 
-
     private static DisplayModel createDefaultModel(BlockData block, double length, double thickness) {
         return new DisplayModel(new ArrayList<>(List.of(new BlockDisplayModelPiece(
             block,
@@ -25,14 +24,6 @@ public final class ApplyLegModels {
             new Display.Brightness(0, 15),
             new ArrayList<>(List.of("cloak"))
         ))));
-    }
-
-    public static void applyEmptyLegModel(BodyPlan bodyPlan) {
-        for (LegPlan leg : bodyPlan.getLegs()) {
-            for (SegmentPlan segment : leg.getSegments()) {
-                segment.setModel(DisplayModel.empty());
-            }
-        }
     }
 
     public static void applyLineLegModel(BodyPlan bodyPlan, BlockData block) {
@@ -46,32 +37,6 @@ public final class ApplyLegModels {
                 double fraction = (double) index / (segments.size() - 1);
                 double thickness = rootThickness + (tipThickness - rootThickness) * fraction;
                 segment.setModel(createDefaultModel(block, segment.getLength(), thickness));
-            }
-        }
-    }
-
-    public static void applyBotLegModel(BodyPlan bodyPlan) {
-        for (LegPlan leg : bodyPlan.getLegs()) {
-            List<SegmentPlan> visibleSegments = new ArrayList<>();
-            for (SegmentPlan segment : leg.getSegments()) {
-                if (segment.getLength() > 0.0) visibleSegments.add(segment);
-            }
-
-            int modelIndex = 0;
-            for (SegmentPlan segment : leg.getSegments()) {
-                if (segment.getLength() <= 0.0) {
-                    segment.setModel(DisplayModel.empty());
-                    continue;
-                }
-
-                DisplayModel model;
-                if (modelIndex == 0) model = SpiderLegModel.getBASE();
-                else if (modelIndex == visibleSegments.size() - 2) model = SpiderLegModel.getTIBIA();
-                else if (modelIndex == visibleSegments.size() - 1) model = SpiderLegModel.getTIP();
-                else model = SpiderLegModel.getFEMUR();
-
-                segment.setModel(model.clone().scale(1f, 1f, (float) segment.getLength()));
-                modelIndex++;
             }
         }
     }

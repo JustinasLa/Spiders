@@ -63,7 +63,7 @@ public final class SpiderShape {
         return Math.max(legReach != null ? legReach : 0.0, BODY_REACH * plan.getScale());
     }
 
-    /** Where along [from]→[to] (0..1) the segment first enters any piece, and that point; null if it misses. */
+    /** Where along {@code from}→{@code to} (0..1) the segment first enters any piece, and that point; null if it misses. */
     public static Pair<Double, Vector> firstHit(List<ShapePiece> pieces, Vector from, Vector to) {
         double best = Double.MAX_VALUE;
         for (ShapePiece piece : pieces) {

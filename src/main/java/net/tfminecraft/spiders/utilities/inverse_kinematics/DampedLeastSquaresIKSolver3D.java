@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.utilities.inverse_kinematics;
 
+import net.tfminecraft.spiders.utilities.maths.Maths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -113,7 +114,7 @@ public final class DampedLeastSquaresIKSolver3D {
         IKJointPose3D jointPose = pose.getSegments().get(descriptor.getJointIndex());
 
         if (joint instanceof IKHingeJoint3D hinge && jointPose instanceof IKHingeJointState3D hingePose) {
-            return IKChain3D.coerceIn(hingePose.getAngle() + delta, hinge.getMinAngle(), hinge.getMaxAngle()) - hingePose.getAngle();
+            return Maths.clamp(hingePose.getAngle() + delta, hinge.getMinAngle(), hinge.getMaxAngle()) - hingePose.getAngle();
         }
 
         if (joint instanceof IKSwingTwistJoint3D swingTwist && jointPose instanceof IKSwingTwistJointState3D swingTwistPose) {
@@ -121,15 +122,15 @@ public final class DampedLeastSquaresIKSolver3D {
                 // The swing is limited to a cone, so each component's range depends on the other.
                 case SwingX -> {
                     double limit = IKChain3D.swingComponentLimit(swingTwistPose.getSwingY(), swingTwist.getMaxSwing());
-                    yield IKChain3D.coerceIn(swingTwistPose.getSwingX() + delta, -limit, limit) - swingTwistPose.getSwingX();
+                    yield Maths.clamp(swingTwistPose.getSwingX() + delta, -limit, limit) - swingTwistPose.getSwingX();
                 }
 
                 case SwingY -> {
                     double limit = IKChain3D.swingComponentLimit(swingTwistPose.getSwingX(), swingTwist.getMaxSwing());
-                    yield IKChain3D.coerceIn(swingTwistPose.getSwingY() + delta, -limit, limit) - swingTwistPose.getSwingY();
+                    yield Maths.clamp(swingTwistPose.getSwingY() + delta, -limit, limit) - swingTwistPose.getSwingY();
                 }
 
-                case Twist -> IKChain3D.coerceIn(swingTwistPose.getTwist() + delta, swingTwist.getMinTwist(), swingTwist.getMaxTwist()) - swingTwistPose.getTwist();
+                case Twist -> Maths.clamp(swingTwistPose.getTwist() + delta, swingTwist.getMinTwist(), swingTwist.getMaxTwist()) - swingTwistPose.getTwist();
 
                 case Angle -> 0.0;
             };

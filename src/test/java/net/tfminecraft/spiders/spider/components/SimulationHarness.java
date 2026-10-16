@@ -25,7 +25,7 @@ final class SimulationHarness {
         return x >= -12 && x <= 12 && z >= -30 && z <= 13 && y >= -2 && y <= 10 && (y < 0 || z >= 10 || y >= 8);
     }
 
-    /** A Cinderweaver body on [start] whose options always use one gait (gallop or walk). */
+    /** A Cinderweaver body on {@code start} whose options always use one gait (gallop or walk). */
     static Run spawn(World world, double scale, boolean gallop, Vector start, boolean climbing, Quaternionf orientation) {
         Gait gait;
         if (gallop) {

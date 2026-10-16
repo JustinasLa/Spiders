@@ -1,20 +1,9 @@
 package net.tfminecraft.spiders.spider.components.body;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public final class LegLookUp {
     private LegLookUp() {
-    }
-
-    public static List<List<Integer>> diagonalPairs(List<Integer> legs) {
-        List<List<Integer>> out = new ArrayList<>();
-        for (int it : legs) {
-            List<Integer> pair = new ArrayList<>(diagonal(it));
-            pair.add(it);
-            out.add(pair);
-        }
-        return out;
     }
 
     public static boolean isLeftLeg(int leg) {

@@ -3,7 +3,6 @@ package net.tfminecraft.spiders.utilities.custom_items;
 import net.tfminecraft.spiders.StaffAccess;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.events.Events;
-import net.tfminecraft.spiders.utilities.events.Scheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -19,7 +18,7 @@ import java.util.function.BiConsumer;
 
 /**
  * A staff tool. An item only counts as this tool if it carries the tool's tag *and* is still the
- * tool's [material]: a plain item of the same type, or a tagged item of another type, does nothing.
+ * tool's {@code material}: a plain item of the same type, or a tagged item of another type, does nothing.
  */
 public class CustomItemComponent {
     @FunctionalInterface
@@ -88,15 +87,4 @@ public class CustomItemComponent {
         });
     }
 
-    public void onHeldTick(BiConsumer<Player, ItemStack> action) {
-        Scheduler.onTick(it -> {
-            for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-                if (!StaffAccess.canUse(player)) continue;
-                ItemStack itemInMainHand = player.getInventory().getItemInMainHand();
-                ItemStack itemInOffHand = player.getInventory().getItemInOffHand();
-                if (isAttached(itemInMainHand)) action.accept(player, itemInMainHand);
-                if (isAttached(itemInOffHand)) action.accept(player, itemInOffHand);
-            }
-        });
-    }
 }

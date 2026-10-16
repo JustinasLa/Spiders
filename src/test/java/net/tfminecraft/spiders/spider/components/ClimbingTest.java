@@ -31,7 +31,7 @@ class ClimbingTest {
         climbRoom(scale, gallop, 0);
     }
 
-    /** The wall-and-ceiling room turned so that the wall lies [degrees] clockwise from +z. */
+    /** The wall-and-ceiling room turned so that the wall lies {@code degrees} clockwise from +z. */
     private void climbRoom(double scale, boolean gallop, int degrees) {
         double angle = Math.toRadians((double) degrees);
         double cos = Math.cos(angle);

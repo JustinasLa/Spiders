@@ -15,8 +15,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
- * Gallop at a target, then leap at it. [target] returns null once the target is gone;
- * [onEnd] hears how it ended and, after a landing, how far from the target it came down.
+ * Gallop at a target, then leap at it. {@code target} returns null once the target is gone;
+ * {@code onEnd} hears how it ended and, after a landing, how far from the target it came down.
  */
 public class Pounce implements ECSComponent {
     public enum Phase { CHASE, AIRBORNE }
@@ -132,7 +132,7 @@ public class Pounce implements ECSComponent {
         onEnd.accept(outcome, landedDistance);
     }
 
-    /** A leap launched with [lift], stepped like [SpiderBody] steps it (gravity, then air drag). */
+    /** A leap launched with {@code lift}, stepped like {@link SpiderBody} steps it (gravity, then air drag). */
     private static final class Flight {
         final int ticks;
         final double reachPerSpeed;

@@ -265,7 +265,7 @@ public class ObjectPath {
         int start = 0;
         for (int i = 0; i <= path.length(); i++) {
             if (i == path.length() || path.charAt(i) == '.' || path.charAt(i) == '[' || path.charAt(i) == ']') {
-                String part = trim(path.substring(start, i));
+                String part = path.substring(start, i).strip();
                 if (!part.isEmpty()) out.add(part);
                 start = i + 1;
             }
@@ -273,18 +273,6 @@ public class ObjectPath {
         return out;
     }
 
-    // Kotlin's String.trim(): strips characters that are whitespace or space separators
-    private static String trim(String value) {
-        int start = 0;
-        int end = value.length() - 1;
-        while (start <= end && isWhitespace(value.charAt(start))) start++;
-        while (end >= start && isWhitespace(value.charAt(end))) end--;
-        return value.substring(start, end + 1);
-    }
-
-    private static boolean isWhitespace(char c) {
-        return Character.isWhitespace(c) || Character.isSpaceChar(c);
-    }
 
     private static Integer toIntOrNull(String value) {
         if (value.isEmpty()) return null;

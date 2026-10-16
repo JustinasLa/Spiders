@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.utilities;
 
+import net.tfminecraft.spiders.utilities.maths.Maths;
 import org.joml.Vector2d;
 
 import java.util.List;
@@ -55,7 +56,7 @@ public final class Polygons {
         double t = dotProduct / (lengthAB * lengthAB);
 
         // Ensure the nearest point lies within the line segment
-        double tClamped = coerceIn(t, 0.0, 1.0);
+        double tClamped = Maths.clamp(t, 0.0, 1.0);
 
         double nearestX = a.x + tClamped * ab.x;
         double nearestY = a.y + tClamped * ab.y;
@@ -63,10 +64,4 @@ public final class Polygons {
         return new Vector2d(nearestX, nearestY);
     }
 
-    // Kotlin's coerceIn (keeps -0.0 and NaN as they are, unlike Math.clamp)
-    private static double coerceIn(double value, double min, double max) {
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
 }

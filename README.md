@@ -4,7 +4,7 @@
 
 Spiders brings Cinderweavers to TF-Minecraft: organic dark fantasy spiders with rounded charcoal-brown abdomens, tapered legs, clustered red eyes and curved fangs. Every leg steps, climbs and gallops through procedural animation, so a spider crossing a cave floor, a wall or a ceiling finds its own footing.
 
-Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a mimic among ordinary chests. Anyone nearby can fight back: arrows, thrown items and swings hit the spider and push it away.
+Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a mimic among ordinary chests. Anyone nearby can fight back: arrows, tridents, snowballs, eggs, wind charges and swings hit the spider and push it away.
 
 ## Features
 
@@ -13,13 +13,13 @@ Staff spawn, steer, ride and direct the spiders for events and scenes, or hide a
 - **Walls and ceilings** — climbing spiders walk up walls, across ceilings and over ledges, and drop back to the floor on demand.
 - **Pounce** — a spider gallops at a player or a spot and leaps the last few blocks onto it.
 - **Mimics** — a dormant chest that breathes, turns to face you when you look away and peeks at you with red eyes. Touch it and it cracks its lid, springs at your face with a full-screen jump scare and a scream, unfolds on four cracking legs and hunts you for ten seconds, biting, while your heart pounds and the world goes dark. Then it stops, cocks its head at you, and gallops away to hide as another chest. Linger beside one and it takes you anyway.
-- **Staff tools** — a menu of seals, guides, whistles, charms and debug tools to place, direct and inspect spiders.
+- **Staff tools** — a menu of seals, guides, whistles, charms and debug tools to place, direct and inspect spiders. Tools reach spiders within 64 blocks, and the debug view is shown only to the staff member who turns it on.
 - **Riding** — staff right-click a spider to ride and drive it, including along walls and ceilings. No saddle shows, so a vanished rider leaves nothing visible.
-- **Getting hit** — arrows, tridents, snowballs, eggs, wind charges and melee swings strike the spider's body and push it.
+- **Getting hit** — arrows, tridents, snowballs, eggs, wind charges and melee swings strike the spider's body and push it, stopping at walls.
 - **Shroud** — a spider can copy the blocks behind it, as seen by the nearest player, and hide in plain sight.
 - **Vanilla rendering** — spiders are drawn with vanilla display entities and need no resource pack or client mod; mimics use a small pack in [`resourcepack/`](resourcepack/README.md) for the chest model, their sounds and the jump scare.
 
-Spiders are staff-operated test entities: they have no health or loot, and they do not survive a restart. Dormant mimics are real chests and do. Awake mimics are the one hostile thing: they hunt whoever woke or hit them, but a bite never takes a player's last heart.
+Spiders are staff-operated test entities: they have no health or loot, and they do not survive a restart. A spider with no player within 96 blocks, or in an unloaded chunk, sleeps until someone comes back. Dormant mimics are real chests and do. Awake mimics are the one hostile thing: they hunt whoever woke or hit them, but a bite never takes a player's last heart.
 
 ## Credits
 
@@ -36,8 +36,9 @@ Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/
 ## Tests
 
 Run `mvn clean verify` with Java 21. JUnit 5 and Mockito tests cover
-staff access, the staff tools, the Cinderweaver model, climbing, pouncing, hits,
-mounting, the shroud and mimics, running the spider simulation against mocked worlds.
+staff access, the staff tools, command limits, the Cinderweaver model, climbing,
+pouncing, hits, mounting, the shroud, sleeping spiders, system error isolation and
+mimics, running the spider simulation against mocked worlds.
 Surefire writes test results to `target/surefire-reports/`; the Build workflow
 uploads them. No coverage gate is enforced. The tests do not start a live Paper
 server or check how the spiders look and move on a client.

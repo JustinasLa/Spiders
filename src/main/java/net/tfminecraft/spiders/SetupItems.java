@@ -2,6 +2,7 @@ package net.tfminecraft.spiders;
 
 import net.kyori.adventure.text.Component;
 import net.tfminecraft.spiders.commands.SpiderTargets;
+import net.tfminecraft.spiders.commands.StaffCommands;
 import net.tfminecraft.spiders.laser.LaserPoint;
 import net.tfminecraft.spiders.spider.components.Cloak;
 import net.tfminecraft.spiders.spider.components.Mimic;
@@ -47,6 +48,8 @@ import java.util.UUID;
 public final class SetupItems {
     private SetupItems() {}
 
+    /** How far the Summoning Seal and the Brood Guide reach when aimed at a surface (blocks). */
+    private static final double AIM_REACH = 100.0;
 
     public static void setupItems() {
         ECS ecs = AppState.getEcs();
@@ -67,7 +70,7 @@ public final class SetupItems {
                 setSpiderUUID(item, null);
                 player.sendActionBar(Component.text("Spider removed"));
             } else {
-                RayTraceResult result = Geometry.raycastGround(player.getWorld(), Overloads.getEyePosition(player), Overloads.getDirection(player), 100.0);
+                RayTraceResult result = Geometry.raycastGround(player.getWorld(), Overloads.getEyePosition(player), Overloads.getDirection(player), AIM_REACH);
                 if (result == null) return;
                 Vector hitPosition = result.getHitPosition();
                 Vector up = result.getHitBlockFace() != null ? result.getHitBlockFace().getDirection() : Maths.upVector();
@@ -77,7 +80,7 @@ public final class SetupItems {
                 SpiderOptions stored = getSpiderOptions(item);
                 SpiderOptions options = stored != null ? stored : Presets.defaultPreset();
                 // placed on a wall or ceiling: it has to cling on
-                if (up.getY() < .7) options.setClimbing(true);
+                if (up.getY() < StaffCommands.SURFACE_FLOOR_MIN_UP) options.setClimbing(true);
                 Vector yawDirection = Maths.rotate(Maths.forwardVector(), new Quaternionf().rotationY(Overloads.yawRadians(player)));
                 Quaternionf orientation = SpiderBody.snapRotationAbout(
                     SpiderBody.orientationFrom(up, Overloads.getDirection(player), yawDirection),
@@ -219,7 +222,7 @@ public final class SetupItems {
             // handle laser pointer
             for (Player player : laserPointerComponent.getPlayersHoldingItem()) {
                 Vector direction = Overloads.getDirection(player);
-                RayTraceResult result = Geometry.raycastGround(player.getWorld(), Overloads.getEyePosition(player), direction, 100.0);
+                RayTraceResult result = Geometry.raycastGround(player.getWorld(), Overloads.getEyePosition(player), direction, AIM_REACH);
 
                 Vector hitPosition = result != null ? result.getHitPosition() :
                     Overloads.getEyePosition(player).add(direction.multiply(200));

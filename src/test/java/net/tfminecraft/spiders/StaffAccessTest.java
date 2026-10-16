@@ -52,7 +52,7 @@ class StaffAccessTest {
         Player player = mock(Player.class);
         when(source.getSender()).thenReturn(player);
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-        dispatcher.register(SetupCommands.spiderCommandTree(() -> {}));
+        dispatcher.register(SetupCommands.spiderCommandTree());
         for (String command : List.of("spider", "spider spawn hunter", "spider tools", "spider items",
             "spider remove all", "spider list", "spider scale 1", "spider splay", "spider pounce nearest",
             "spider options global.showLaser set false")) {
@@ -69,7 +69,7 @@ class StaffAccessTest {
         when(source.getSender()).thenReturn(actor);
         when(actor.hasPermission(StaffAccess.PERMISSION)).thenReturn(true);
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-        dispatcher.register(SetupCommands.spiderCommandTree(() -> {}));
+        dispatcher.register(SetupCommands.spiderCommandTree());
         assertEquals(1, dispatcher.execute("spider list", source));
         when(actor.hasPermission(StaffAccess.PERMISSION)).thenReturn(false);
         assertThrows(CommandSyntaxException.class, () -> dispatcher.execute("spider list", source));

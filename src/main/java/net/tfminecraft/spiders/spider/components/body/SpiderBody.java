@@ -149,7 +149,7 @@ public class SpiderBody implements ECSComponent {
         return rotationalVelocity;
     }
 
-    /** Knocks the body with [impulse]; for a second it slides to a stop at walls instead of through them. */
+    /** Knocks the body with {@code impulse}; for a second it slides to a stop at walls instead of through them. */
     public void shove(Vector impulse) {
         velocity.add(impulse);
         shoveTicks = SHOVE_TICKS;
@@ -222,7 +222,7 @@ public class SpiderBody implements ECSComponent {
 
         planarForward.normalize();
         double angle = Math.atan2(axis.dot(reference.clone().crossProduct(planarForward)), reference.dot(planarForward));
-        float snapped = roundToInt(angle / incrementRadians) * incrementRadians;
+        float snapped = Maths.roundToInt(angle / incrementRadians) * incrementRadians;
         return orientationFrom(axis, reference.rotateAroundAxis(axis, (double) snapped));
     }
 
@@ -254,7 +254,6 @@ public class SpiderBody implements ECSComponent {
     }
 
     private static Vector getPos(Leg leg) {
-//            if (leg.isOutsideTriggerZone) return leg.endEffector
         LegTarget groundTarget = leg.getGroundTarget();
         return groundTarget != null ? groundTarget.getPosition() : leg.getRestPosition();
     }
@@ -384,8 +383,7 @@ public class SpiderBody implements ECSComponent {
             double heightError = preferredPosition.clone().subtract(position).dot(n);
             double heightRate = velocity.dot(n);
             double springLimit = gait.getBodyHeightCorrectionAcceleration() * fractionOfLegsGrounded;
-            double heightSpring = coerceIn(heightError - heightRate, -springLimit, springLimit);
-
+            double heightSpring = Maths.clamp(heightError - heightRate, -springLimit, springLimit);
 
             // push +n
             double support = Math.max(0.0, -gravityIntoSurface * fractionOfLegsGrounded + heightSpring);
@@ -395,7 +393,7 @@ public class SpiderBody implements ECSComponent {
             double adhesionForce =
                 (gravityPressesIn ? 0.0 : Math.min(0.0, heightSpring)) -
                 Math.max(0.0, gravityIntoSurface);
-            double adhesion = coerceIn(adhesionForce, -gripLimit, 0.0);
+            double adhesion = Maths.clamp(adhesionForce, -gripLimit, 0.0);
 
             // cancel tangential gravity
             Vector traction = gravityTangent.multiply(-1.0);
@@ -491,7 +489,6 @@ public class SpiderBody implements ECSComponent {
         for (int i = rights.size() - 1; i >= 0; i--) out.add(rights.get(i));
         return out;
     }
-
 
     private Vector calcPreferredPosition(Gait gait) {
         Vector up = Maths.rotate(Maths.upVector(), preferredOrientation);
@@ -617,21 +614,4 @@ public class SpiderBody implements ECSComponent {
         });
     }
 
-    /** Kotlin's {@code Double.coerceIn}: NaN and signed zeros pass through unchanged. */
-    private static double coerceIn(double value, double min, double max) {
-        if (min > max) {
-            throw new IllegalArgumentException("Cannot coerce value to an empty range: maximum " + max + " is less than minimum " + min + ".");
-        }
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
-
-    /** Kotlin's {@code Double.roundToInt}. */
-    private static int roundToInt(double value) {
-        if (Double.isNaN(value)) throw new IllegalArgumentException("Cannot round NaN value.");
-        if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-        if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-        return (int) Math.round(value);
-    }
 }

@@ -14,7 +14,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -54,15 +53,6 @@ public final class Events {
             @EventHandler
             public void onInteract(PlayerInteractEntityEvent event) {
                 listener.accept(event);
-            }
-        });
-    }
-
-    public static Disposable onSpawnEntity(Consumer<Entity> listener) {
-        return addEventListener(new Listener() {
-            @EventHandler
-            public void onSpawn(EntitySpawnEvent event) {
-                listener.accept(event.getEntity());
             }
         });
     }

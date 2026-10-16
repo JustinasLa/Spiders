@@ -117,7 +117,7 @@ class HitDetectorTest {
         return standingSpider(scale, field(), nearby);
     }
 
-    /** A settled spider with hit detection running and [nearby] entities around it. */
+    /** A settled spider with hit detection running and {@code nearby} entities around it. */
     private Run standingSpider(double scale, World world, Supplier<List<Entity>> nearby) {
         when(world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(call -> nearby.get());
         Run run = spawn(world, scale, false, new Vector(.5, 0.0, .5), false);
@@ -136,7 +136,7 @@ class HitDetectorTest {
         return hits;
     }
 
-    /** Flies [projectile] for up to 10 ticks; returns the hit and the spider's velocity change on the hit tick. */
+    /** Flies {@code projectile} for up to 10 ticks; returns the hit and the spider's velocity change on the hit tick. */
     private static Shot fly(Run run, Flying<?> projectile) {
         List<SpiderHitEvent> hits = collectHits(run);
         for (int i = 0; i < 10; i++) {

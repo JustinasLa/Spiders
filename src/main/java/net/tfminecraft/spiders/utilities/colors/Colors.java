@@ -7,7 +7,7 @@ import org.bukkit.Color;
 
 import java.util.List;
 
-/** {@code ColorGradient} (a Kotlin typealias) is {@code List<Pair<Float, Color>>}. */
+/** Colour helpers. A gradient is a {@code List<Pair<Float, Color>>} of stops from 0 to 1. */
 public final class Colors {
     private Colors() {
     }
@@ -17,16 +17,6 @@ public final class Colors {
         Color apply(Color start, Color end, float fraction);
     }
 
-
-    public static Color blendAlpha(Color bottom, Color top) {
-        double alpha = top.getAlpha() / 255.0;
-        double topAlpha = bottom.getAlpha() / 255.0;
-        double blendedAlpha = alpha + topAlpha * (1 - alpha);
-        double r = (top.getRed() * alpha + bottom.getRed() * topAlpha * (1 - alpha)) / blendedAlpha;
-        double g = (top.getGreen() * alpha + bottom.getGreen() * topAlpha * (1 - alpha)) / blendedAlpha;
-        double b = (top.getBlue() * alpha + bottom.getBlue() * topAlpha * (1 - alpha)) / blendedAlpha;
-        return Color.fromARGB((int) (blendedAlpha * 255), (int) r, (int) g, (int) b);
-    }
 
     public static Color lerpRGB(Color color, Color other, float t) {
         return Color.fromARGB(
@@ -39,18 +29,6 @@ public final class Colors {
 
     public static float value(Color color) {
         return ((color.getRed() + color.getGreen() + color.getBlue()) / 3f) / 255f;
-    }
-
-    public static Color scaleRGB(Color color, float value) {
-        int r = Math.clamp((int) (color.getRed() * value), 0, 255);
-        int g = Math.clamp((int) (color.getGreen() * value), 0, 255);
-        int b = Math.clamp((int) (color.getBlue() * value), 0, 255);
-        return Color.fromARGB(color.getAlpha(), r, g, b);
-    }
-
-    public static Color scaleAlpha(Color color, float value) {
-        int a = Math.clamp((int) (color.getAlpha() * value), 0, 255);
-        return Color.fromARGB(a, color.getRed(), color.getGreen(), color.getBlue());
     }
 
     public static Triple<Float, Float, Float> toHSV(Color color) {
@@ -91,14 +69,6 @@ public final class Colors {
         return lerpFunction.apply(start.second(), end.second(), (t - start.first()) / (end.first() - start.first()));
     }
 
-    public static Color interpolateRGB(List<Pair<Float, Color>> gradient, float t) {
-        return interpolate(gradient, t, (start, end, fraction) -> lerpRGB(start, end, fraction));
-    }
-
-    public static Color interpolateOkLab(List<Pair<Float, Color>> gradient, float t) {
-        return interpolate(gradient, t, (start, end, fraction) -> lerpOkLab(start, end, fraction));
-    }
-
     public static Color lerpOkLab(Color color, Color other, float t) {
         Oklab start = Oklab.toOklab(color);
         Oklab end = Oklab.toOklab(other);
@@ -114,17 +84,6 @@ public final class Colors {
         );
     }
 
-//fun Color.hsvLerp(other: Color, t: Double): Color {
-//    val (h1, s1, v1) = this.toHSV()
-//    val (h2, s2, v2) = other.toHSV()
-//
-//    val h = h1.lerp(h2, t)
-//    val s = s1.lerp(s2, t)
-//    val v = v1.lerp(v2, t)
-//    val a = this.alpha.toDouble().lerp(other.alpha.toDouble(), t).toInt()
-//
-//    return hsv(h, s, v).setAlpha(a)
-//}
 
     /**
      * Converts an HSV color to RGB.

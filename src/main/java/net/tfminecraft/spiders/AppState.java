@@ -47,11 +47,7 @@ public final class AppState {
         return miscOptions;
     }
 
-    public static void setMiscOptions(MiscellaneousOptions miscOptions) {
-        AppState.miscOptions = miscOptions;
-    }
-
-    /** Turns the debug view on or off for [player]; true if it is now on. */
+    /** Turns the debug view on or off for {@code player}; true if it is now on. */
     public static boolean toggleDebugView(Player player) {
         if (debugViewers.remove(player.getUniqueId())) return false;
         debugViewers.add(player.getUniqueId());
@@ -136,17 +132,22 @@ public final class AppState {
         return ecs.spawn(components);
     }
 
-    public static int spiderCount() {
-        int count = 0;
+    /** Every spider not already being removed, with its body. */
+    public static List<Pair<ECSEntity, SpiderBody>> liveSpiders() {
+        List<Pair<ECSEntity, SpiderBody>> out = new ArrayList<>();
         for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
-            if (!pair.first().getScheduledForRemoval()) count++;
+            if (!pair.first().getScheduledForRemoval()) out.add(pair);
         }
-        return count;
+        return out;
+    }
+
+    public static int spiderCount() {
+        return liveSpiders().size();
     }
 
     public static ECSEntity findSpiderByUUID(UUID uuid) {
-        for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
-            if (!pair.first().getScheduledForRemoval() && Objects.equals(pair.second().getUuid(), uuid)) return pair.first();
+        for (Pair<ECSEntity, SpiderBody> pair : liveSpiders()) {
+            if (Objects.equals(pair.second().getUuid(), uuid)) return pair.first();
         }
         return null;
     }
@@ -159,12 +160,12 @@ public final class AppState {
         return findNearestSpider(location, Double.POSITIVE_INFINITY);
     }
 
-    /** The nearest spider in [location]'s world within [maxDistance] blocks, or null. */
+    /** The nearest spider in {@code location}'s world within {@code maxDistance} blocks, or null. */
     public static ECSEntity findNearestSpider(Location location, double maxDistance) {
         ECSEntity nearest = null;
         double nearestDistance = 0.0;
-        for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
-            if (pair.first().getScheduledForRemoval() || !Objects.equals(pair.second().getWorld(), location.getWorld())) continue;
+        for (Pair<ECSEntity, SpiderBody> pair : liveSpiders()) {
+            if (!Objects.equals(pair.second().getWorld(), location.getWorld())) continue;
             double distance = pair.second().getPosition().distanceSquared(location.toVector());
             if (nearest == null || Double.compare(nearestDistance, distance) > 0) {
                 nearest = pair.first();

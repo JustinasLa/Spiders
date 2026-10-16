@@ -5,7 +5,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import net.tfminecraft.spiders.AppState;
@@ -30,6 +29,8 @@ import org.joml.Quaternionf;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import static net.tfminecraft.spiders.commands.CommandSupport.COORDINATE_LIMIT;
+import static net.tfminecraft.spiders.commands.CommandSupport.error;
 
 public final class StaffCommands {
     private StaffCommands() {}
@@ -46,12 +47,7 @@ public final class StaffCommands {
     public static LiteralArgumentBuilder<CommandSourceStack> spawnCommand() {
         return Commands.literal("spawn").then(
             Commands.argument("size", StringArgumentType.word())
-                .suggests((context, builder) -> {
-                    for (String suggestion : SIZE_SUGGESTIONS) {
-                        if (suggestion.startsWith(builder.getRemaining().toLowerCase(Locale.ROOT))) builder.suggest(suggestion);
-                    }
-                    return builder.buildFuture();
-                })
+                .suggests((context, builder) -> CommandSupport.suggest(builder, SIZE_SUGGESTIONS))
                 .executes(ctx -> {
                     if (StringArgumentType.getString(ctx, "size").equalsIgnoreCase(MIMIC)) return MimicCommands.placeAimed(ctx);
                     if (!(ctx.getSource().getSender() instanceof Player player)) throw error("Console: /spider spawn <size> at <world> <x> <y> <z>");
@@ -65,15 +61,10 @@ public final class StaffCommands {
                 })
                 .then(Commands.literal("at").then(
                     Commands.argument("world", StringArgumentType.word())
-                        .suggests((context, builder) -> {
-                            for (World world : Bukkit.getWorlds()) {
-                                if (world.getName().startsWith(builder.getRemaining())) builder.suggest(world.getName());
-                            }
-                            return builder.buildFuture();
-                        })
-                        .then(Commands.argument("x", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0)).then(
+                        .suggests((context, builder) -> CommandSupport.suggestWorlds(builder))
+                        .then(Commands.argument("x", DoubleArgumentType.doubleArg(-COORDINATE_LIMIT, COORDINATE_LIMIT)).then(
                             Commands.argument("y", DoubleArgumentType.doubleArg()).then(
-                                Commands.argument("z", DoubleArgumentType.doubleArg(-29999984.0, 29999984.0)).executes(ctx -> {
+                                Commands.argument("z", DoubleArgumentType.doubleArg(-COORDINATE_LIMIT, COORDINATE_LIMIT)).executes(ctx -> {
                                     World world = Bukkit.getWorld(StringArgumentType.getString(ctx, "world"));
                                     if (world == null) throw error("World not found.");
                                     return spawn(ctx, new Location(world,
@@ -90,7 +81,7 @@ public final class StaffCommands {
     private static final String MIMIC = "mimic";
 
     /** Faces whose normal points less upward than this are walls or ceilings. */
-    private static final double SURFACE_FLOOR_MIN_UP = .7;
+    public static final double SURFACE_FLOOR_MIN_UP = .7;
 
     private static int spawn(CommandContext<CommandSourceStack> ctx, Location location, Quaternionf orientation, boolean onSurface) throws CommandSyntaxException {
         String sizeId = StringArgumentType.getString(ctx, "size");
@@ -120,10 +111,7 @@ public final class StaffCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> listCommand() {
         return Commands.literal("list").executes(ctx -> {
-            List<Pair<ECSEntity, SpiderBody>> spiders = new ArrayList<>();
-            for (Pair<ECSEntity, SpiderBody> pair : AppState.getEcs().query(ECSEntity.class, SpiderBody.class)) {
-                if (!pair.first().getScheduledForRemoval()) spiders.add(pair);
-            }
+            List<Pair<ECSEntity, SpiderBody>> spiders = AppState.liveSpiders();
             ctx.getSource().getSender().sendPlainMessage("Cinderweavers: " + spiders.size() + "/" + AppState.MAX_SPIDERS);
             for (Pair<ECSEntity, SpiderBody> pair : spiders) {
                 ECSEntity entity = pair.first();
@@ -146,10 +134,7 @@ public final class StaffCommands {
                 return 1;
             })
             .then(Commands.literal("all").executes(ctx -> {
-                List<Pair<ECSEntity, SpiderBody>> spiders = new ArrayList<>();
-                for (Pair<ECSEntity, SpiderBody> pair : AppState.getEcs().query(ECSEntity.class, SpiderBody.class)) {
-                    if (!pair.first().getScheduledForRemoval()) spiders.add(pair);
-                }
+                List<Pair<ECSEntity, SpiderBody>> spiders = AppState.liveSpiders();
                 for (Pair<ECSEntity, SpiderBody> pair : spiders) pair.first().remove();
                 ctx.getSource().getSender().sendPlainMessage("Removed " + spiders.size() + " Cinderweavers.");
                 return 1;
@@ -158,9 +143,8 @@ public final class StaffCommands {
                 String id = StringArgumentType.getString(ctx, "id");
                 if (id.length() < 8) throw error("Use at least the eight-character ID from /spider list.");
                 List<Pair<ECSEntity, SpiderBody>> matches = new ArrayList<>();
-                for (Pair<ECSEntity, SpiderBody> pair : AppState.getEcs().query(ECSEntity.class, SpiderBody.class)) {
-                    String uuid = pair.second().getUuid().toString();
-                    if (!pair.first().getScheduledForRemoval() && uuid.regionMatches(true, 0, id, 0, id.length())) matches.add(pair);
+                for (Pair<ECSEntity, SpiderBody> pair : AppState.liveSpiders()) {
+                    if (pair.second().getUuid().toString().regionMatches(true, 0, id, 0, id.length())) matches.add(pair);
                 }
                 if (matches.size() != 1) throw error("Use an unambiguous ID from /spider list.");
                 matches.get(0).first().remove();
@@ -169,7 +153,4 @@ public final class StaffCommands {
             }));
     }
 
-    private static CommandSyntaxException error(String message) {
-        return new SimpleCommandExceptionType(() -> message).create();
-    }
 }

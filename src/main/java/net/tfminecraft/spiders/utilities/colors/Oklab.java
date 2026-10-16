@@ -64,9 +64,9 @@ public class Oklab {
 
         return Color.fromARGB(
             alpha,
-            (int) (coerceIn(r, 0.0, 1.0) * 255),
-            (int) (coerceIn(g, 0.0, 1.0) * 255),
-            (int) (coerceIn(b, 0.0, 1.0) * 255)
+            (int) (Maths.clamp(r, 0.0, 1.0) * 255),
+            (int) (Maths.clamp(g, 0.0, 1.0) * 255),
+            (int) (Maths.clamp(b, 0.0, 1.0) * 255)
         );
     }
 
@@ -101,10 +101,4 @@ public class Oklab {
         );
     }
 
-    // Kotlin's coerceIn (keeps -0.0 and NaN as they are, unlike Math.clamp)
-    private static double coerceIn(double value, double min, double max) {
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
 }

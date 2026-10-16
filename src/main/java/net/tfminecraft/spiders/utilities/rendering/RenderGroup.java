@@ -8,10 +8,6 @@ import java.util.Map;
 public class RenderGroup implements RenderItem {
     private final Map<Object, RenderItem> children = new LinkedHashMap<>();
 
-//    fun add(handle: Any, item: RenderItem) {
-//        children[handle] = item
-//    }
-
     public void set(Object handle, RenderItem item) {
         children.put(handle, item);
     }

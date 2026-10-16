@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.utilities.inverse_kinematics;
 
+import net.tfminecraft.spiders.utilities.maths.Maths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,7 +18,7 @@ public final class SolveDampedLeastSquares {
         Metrics currentMetrics = problem.evaluateState(state);
         State bestState = problem.cloneState(state);
         Metrics bestMetrics = currentMetrics;
-        double damping = IKChain3D.coerceIn(options.getDamping(), options.getMinDamping(), options.getMaxDamping());
+        double damping = Maths.clamp(options.getDamping(), options.getMinDamping(), options.getMaxDamping());
 
         int iterations = options.getIterations();
         for (int iteration = 0; iteration < iterations; iteration++) {

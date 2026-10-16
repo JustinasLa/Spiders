@@ -111,10 +111,4 @@ public class SpiderOptions implements ECSComponent {
         debug = other.getDebug();
         sound = other.getSound();
     }
-
-//    fun scale(scale: Double) {
-//        walkGait.scale(scale)
-//        gallopGait.scale(scale)
-//        bodyPlan.scale(scale)
-//    }
 }

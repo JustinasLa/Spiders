@@ -15,7 +15,6 @@ import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-
 public class Locomotion implements ECSComponent {
     public static final int DEFAULT_PRIORITY = 0;
     public static final int LASER_PRIORITY = 10;
@@ -102,7 +101,6 @@ public class Locomotion implements ECSComponent {
         });
     }
 
-
     public static void rotateTowards(SpiderBody spider, Vector targetVector, Gait gait) {
         // no direction to face (e.g. standing on the point it was sent to): keep the current heading
         if (!(targetVector.lengthSquared() > 1e-12) || !Double.isFinite(targetVector.lengthSquared())) {
@@ -113,7 +111,7 @@ public class Locomotion implements ECSComponent {
         Vector3f relativeEuler = Geometry.getYXZRelative(facing, spider.getPreferredOrientation());
 
         // clamp pitch
-        relativeEuler.x = coerceIn(relativeEuler.x, -gait.getPreferredPitchLeeway(), gait.getPreferredPitchLeeway());
+        relativeEuler.x = Maths.clamp(relativeEuler.x, -gait.getPreferredPitchLeeway(), gait.getPreferredPitchLeeway());
 
         // clamp roll
         relativeEuler.z = 0f;
@@ -183,13 +181,4 @@ public class Locomotion implements ECSComponent {
         if (hitDetector != null && hitDetector.getStunned() && targetVelocity.isZero()) spider.setWalking(false);
     }
 
-    /** Kotlin's {@code Float.coerceIn}: NaN and signed zeros pass through unchanged. */
-    private static float coerceIn(float value, float min, float max) {
-        if (min > max) {
-            throw new IllegalArgumentException("Cannot coerce value to an empty range: maximum " + max + " is less than minimum " + min + ".");
-        }
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
 }

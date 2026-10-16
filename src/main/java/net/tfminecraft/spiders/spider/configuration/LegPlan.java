@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.spider.configuration;
 
+import net.tfminecraft.spiders.utilities.maths.Maths;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 
@@ -9,7 +10,6 @@ public class LegPlan {
     private Vector attachmentPosition;
     private Vector restPosition;
     private List<SegmentPlan> segments;
-    //val restOrientation: Quaternionf = restOrientationFor(attachmentPosition, restPosition),
     private final Quaternionf restOrientation;
 
     public LegPlan(Vector attachmentPosition, Vector restPosition, List<SegmentPlan> segments, Quaternionf orientation) {
@@ -53,7 +53,7 @@ public class LegPlan {
         // Inverse of rotationYXZ(yaw, pitch, 0) applied to the chain axis:
         //   rotationYXZ(y, x, 0) * (0, 0, 1) == (cos x sin y, -sin x, cos x cos y)
         double yaw = Math.atan2(d.getX(), d.getZ());
-        double pitch = -Math.asin(coerceIn(d.getY(), -1.0, 1.0));
+        double pitch = -Math.asin(Maths.clamp(d.getY(), -1.0, 1.0));
 
         return new Quaternionf().rotationYXZ((float) yaw, (float) pitch, 0f);
     }
@@ -63,13 +63,4 @@ public class LegPlan {
         return direction.lengthSquared() < 1e-9 ? new Quaternionf() : aimOrientation(direction);
     }
 
-    /** Kotlin's {@code Double.coerceIn}: NaN and signed zeros pass through unchanged. */
-    private static double coerceIn(double value, double min, double max) {
-        if (min > max) {
-            throw new IllegalArgumentException("Cannot coerce value to an empty range: maximum " + max + " is less than minimum " + min + ".");
-        }
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
-    }
 }

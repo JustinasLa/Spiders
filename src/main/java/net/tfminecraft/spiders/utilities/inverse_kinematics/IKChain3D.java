@@ -79,7 +79,7 @@ public final class IKChain3D {
                     // be exactly zero
                     angle = REST_BIAS;
                 }
-                yield new IKHingeJointState3D(coerceIn(angle, hinge.getMinAngle(), hinge.getMaxAngle()));
+                yield new IKHingeJointState3D(Maths.clamp(angle, hinge.getMinAngle(), hinge.getMaxAngle()));
             }
 
             case IKSwingTwistJoint3D swingTwist -> new IKSwingTwistJointState3D();
@@ -99,7 +99,7 @@ public final class IKChain3D {
     public static Quaternionf quaternionFromTo(Vector from, Vector to, Vector referenceAxis) {
         Vector3f a = from.toVector3f().normalize();
         Vector3f b = to.toVector3f().normalize();
-        float dot = coerceIn(a.dot(b), -1f, 1f);
+        float dot = Maths.clamp(a.dot(b), -1f, 1f);
 
         if (dot >= 1f - 1e-6f) return new Quaternionf();
 
@@ -123,22 +123,4 @@ public final class IKChain3D {
         return delta;
     }
 
-    // Kotlin coerceIn semantics (signed zeros and NaN behave exactly as in the original).
-    static double coerceIn(double value, double minimumValue, double maximumValue) {
-        if (minimumValue > maximumValue) {
-            throw new IllegalArgumentException("Cannot coerce value to an empty range: maximum " + maximumValue + " is less than minimum " + minimumValue + ".");
-        }
-        if (value < minimumValue) return minimumValue;
-        if (value > maximumValue) return maximumValue;
-        return value;
-    }
-
-    static float coerceIn(float value, float minimumValue, float maximumValue) {
-        if (minimumValue > maximumValue) {
-            throw new IllegalArgumentException("Cannot coerce value to an empty range: maximum " + maximumValue + " is less than minimum " + minimumValue + ".");
-        }
-        if (value < minimumValue) return minimumValue;
-        if (value > maximumValue) return maximumValue;
-        return value;
-    }
 }
