@@ -42,7 +42,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -131,12 +130,7 @@ class ToolBehaviourTest {
         AppState.getEcs().spawn(first);
         AppState.getEcs().spawn(second);
 
-        try {
-            fire("onPlayerInteract", PlayerInteractEvent.class, new PlayerInteractEvent(player, Action.RIGHT_CLICK_AIR, tool(Material.RABBIT_HIDE), null, BlockFace.SELF, EquipmentSlot.HAND));
-        } catch (InvocationTargetException e) {
-            // the confirmation sound needs the server's sound registry, which unit tests lack; the leg is bound first
-            if (!(e.getCause() instanceof LinkageError)) throw e;
-        }
+        fire("onPlayerInteract", PlayerInteractEvent.class, new PlayerInteractEvent(player, Action.RIGHT_CLICK_AIR, tool(Material.RABBIT_HIDE), null, BlockFace.SELF, EquipmentSlot.HAND));
 
         verify(leg).setDisabled(true);
     }
