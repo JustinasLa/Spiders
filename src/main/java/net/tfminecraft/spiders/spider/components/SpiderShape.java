@@ -21,7 +21,7 @@ public final class SpiderShape {
     private SpiderShape() {
     }
 
-    /** Every block the spider is drawn with, placed exactly as renderSpider places them. */
+    /** Every block the spider is drawn with, placed exactly as {@link net.tfminecraft.spiders.spider.components.rendering.RenderSpiderEntities} places them. */
     public static List<ShapePiece> shapePieces(SpiderBody spider, BodyPlan plan) {
         List<ShapePiece> pieces = new ArrayList<>();
 

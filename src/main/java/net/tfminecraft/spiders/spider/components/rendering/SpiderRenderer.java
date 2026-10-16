@@ -79,13 +79,14 @@ public class SpiderRenderer implements ECSComponent {
                 if (renderer.getUseParticles()) {
                     SpiderParticleRenderer.renderSpider(spider);
                 } else {
-                    RenderSpiderEntities.renderSpider(spider, cloak, options).submit(spider);
+                    RenderSpiderEntities.render(spider, cloak, options);
                 }
 
 
                 if (!debugViewers.isEmpty()) RenderVisibility.onlyFor(debugViewers, () ->
                     SpiderDebugRenderEntities.spiderDebugRenderEntities(spider, pointDetector, options).submit(new Pair<>(spider, "debug")));
             }
+            RenderSpiderEntities.endFrame();
         });
     }
 
