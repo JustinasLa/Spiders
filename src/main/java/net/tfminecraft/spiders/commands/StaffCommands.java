@@ -139,12 +139,10 @@ public final class StaffCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> removeCommand() {
         return Commands.literal("remove")
+            // the seal's spider, else the nearest, like the other commands
             .executes(ctx -> {
-                if (!(ctx.getSource().getSender() instanceof Player player)) throw error("Console: /spider remove all");
-                ECSEntity entity = AppState.findNearestSpider(player);
-                if (entity == null) throw error("No spider found in this world.");
-                entity.remove();
-                player.sendPlainMessage("Removed the nearest Cinderweaver.");
+                SetupCommands.requireTargetSpider(ctx.getSource()).remove();
+                ctx.getSource().getSender().sendPlainMessage("Removed the Cinderweaver.");
                 return 1;
             })
             .then(Commands.literal("all").executes(ctx -> {

@@ -5,7 +5,6 @@ import net.tfminecraft.spiders.laser.LaserPoint;
 import net.tfminecraft.spiders.spider.SpiderActivity;
 import net.tfminecraft.spiders.spider.SpiderSystems;
 import net.tfminecraft.spiders.spider.components.body.SpiderBody;
-import net.tfminecraft.spiders.spider.components.rendering.SpiderRenderer;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Pair;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItems;
@@ -69,12 +68,6 @@ public class SpiderAnimationPlugin extends JavaPlugin {
 
         ecs.start();
         Scheduler.onTick(it -> {
-            // sync AppState properties
-            for (Pair<ECSEntity, SpiderBody> pair : ecs.query(ECSEntity.class, SpiderBody.class)) {
-                SpiderRenderer renderer = pair.first().query(SpiderRenderer.class);
-                if (renderer != null) renderer.setRenderDebugVisuals(AppState.getRenderDebugVisuals());
-            }
-
             SpiderActivity.updateSleep(ecs);
             ecs.update();
             ecs.render();

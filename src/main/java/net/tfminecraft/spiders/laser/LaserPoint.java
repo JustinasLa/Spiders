@@ -54,6 +54,9 @@ public final class LaserPoint implements ECSComponent {
         this.isVisible = isVisible;
     }
 
+    /** Spiders only follow a Brood Guide or Broodcall Whistle this close (blocks). */
+    public static final double FOLLOW_RANGE = 64.0;
+
     public static void setupLaserPointer(ECS app) {
         app.onTick(ecs -> {
             List<LaserPoint> lasers = app.query(LaserPoint.class);
@@ -74,7 +77,7 @@ public final class LaserPoint implements ECSComponent {
                         nearestDistance = laserDistance;
                     }
                 }
-                if (nearestLaser == null) continue;
+                if (nearestLaser == null || nearestDistance > FOLLOW_RANGE * FOLLOW_RANGE) continue;
 
                 Locomotion locomotion = spiderEntity.query(Locomotion.class);
                 if (locomotion == null) continue;

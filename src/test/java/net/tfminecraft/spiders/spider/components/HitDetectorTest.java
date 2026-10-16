@@ -18,7 +18,10 @@ import org.bukkit.entity.Skeleton;
 import org.bukkit.entity.Snowball;
 import org.bukkit.entity.Trident;
 import org.bukkit.entity.WindCharge;
+import org.bukkit.block.BlockFace;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.Vector;
@@ -357,6 +360,20 @@ class HitDetectorTest {
         assertTrue(event.getForceful());
         assertTrue(knock.getZ() < -.05, "Swing did not push: " + knock);
         verify(player).resetCooldown();
+    }
+
+    @Test
+    @DisplayName("the arm swing that comes with a right-click is not an attack")
+    void theSwingOfARightClickIsNotAnAttack() {
+        Run run = standingSpider();
+        Player player = fighter(run.body().getWorld(), run.body().getPosition().clone().add(new Vector(0.0, .3, 3.2)), new Vector(0.0, -.1, -1.0));
+        List<SpiderHitEvent> hits = collectHits(run);
+        MeleeListener listener = new MeleeListener(run.app(), p -> 3.0);
+
+        listener.onUse(new PlayerInteractEvent(player, Action.RIGHT_CLICK_BLOCK, null, null, BlockFace.UP));
+        listener.onSwing(new PlayerArmSwingEvent(player, EquipmentSlot.HAND));
+
+        assertTrue(hits.isEmpty(), "A right-click pushed the spider");
     }
 
     @Test

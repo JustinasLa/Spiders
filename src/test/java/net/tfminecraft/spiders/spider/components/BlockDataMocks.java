@@ -41,6 +41,7 @@ final class BlockDataMocks {
     private static BlockData blockData(Material material) {
         BlockData data = mock(BlockData.class);
         when(data.getMaterial()).thenReturn(material);
+        when(data.getAsString()).thenReturn(material.getKey().toString());
         when(data.clone()).thenAnswer(call -> blockData(material));
         return data;
     }

@@ -8,6 +8,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityMountEvent;
+import org.bukkit.event.entity.PigZapEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
@@ -54,6 +55,14 @@ public class StaffMountListener implements Listener {
                 if (marker == null) return;
                 if (marker.getPassengers().isEmpty()) marker.addPassenger(player);
             }
+        }
+    }
+
+    /** Lightning would turn the invisible seat pig into a visible zombified piglin inside the spider. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onZap(PigZapEvent event) {
+        for (Mountable mountable : app.query(Mountable.class)) {
+            if (Objects.equals(event.getEntity(), mountable.getCurrentPig())) event.setCancelled(true);
         }
     }
 }
