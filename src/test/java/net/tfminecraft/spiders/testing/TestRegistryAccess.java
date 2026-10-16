@@ -14,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,7 +31,22 @@ public final class TestRegistryAccess implements RegistryAccess {
     @Override
     @SuppressWarnings({"unchecked", "deprecation"})
     public <T extends Keyed> Registry<T> getRegistry(Class<T> type) {
-        return (Registry<T>) registries.computeIfAbsent(type, TestRegistryAccess::registry);
+        return (Registry<T>) lookUp(registries, type, () -> registry(type));
+    }
+
+    /**
+     * The value for {@code key}, made if missing. Making a mock can initialise its class, and a class
+     * like {@code Sound} or {@code Registry} looks values up again while it initialises, so this must
+     * not hold the map (as {@code computeIfAbsent} does) while it makes one. If the nested lookups
+     * already stored this key, their value wins, so each key still has one instance.
+     */
+    static <K, V> V lookUp(Map<K, V> map, K key, Supplier<V> make) {
+        V existing = map.get(key);
+        if (existing != null) return existing;
+        V made = make.get();
+        if (made == null) return null;
+        V raced = map.putIfAbsent(key, made);
+        return raced != null ? raced : made;
     }
 
     @Override
@@ -63,7 +79,7 @@ public final class TestRegistryAccess implements RegistryAccess {
                 Object argument = call.getArgument(0);
                 if (!(argument instanceof Key key)) yield null;
                 NamespacedKey namespaced = new NamespacedKey(key.namespace(), key.value());
-                yield entries.computeIfAbsent(namespaced, it -> entry(type, it));
+                yield lookUp(entries, namespaced, () -> entry(type, namespaced));
             }
             case "getKey", "getKeyOrThrow" -> call.getArgument(0) instanceof Keyed keyed ? keyed.getKey() : null;
             case "stream" -> entries.values().stream();
