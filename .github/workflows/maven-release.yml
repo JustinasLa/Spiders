@@ -61,12 +61,12 @@ jobs:
         run: |
           mvn -B --no-transfer-progress org.codehaus.mojo:versions-maven-plugin:2.22.0:set \
             -DnewVersion="${TAG#v}" -DgenerateBackupPoms=false
-          mvn -B --no-transfer-progress help:evaluate \
+          mvn -B --no-transfer-progress org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate \
             -Dexpression=project.build.finalName -Doutput="$RUNNER_TEMP/final-name"
           final_name=$(cat "$RUNNER_TEMP/final-name")
           [[ "$final_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 1
           echo "jar=target/$final_name.jar" >> "$GITHUB_OUTPUT"
-          mvn -B --no-transfer-progress clean verify -DskipTests=false -Dmaven.test.skip=false
+          mvn -B --no-transfer-progress clean verify
 
       - name: Stage only the release JAR
         env:
