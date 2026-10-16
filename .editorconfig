@@ -1,4 +1,20 @@
-# Shared TFMC XML formatting; see Docs/POM-CONVENTIONS.md.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Trailing spaces can be a Markdown line break.
+[*.md]
+trim_trailing_whitespace = false
+
+[*.java]
+indent_style = space
+indent_size = 4
+
+# Shared TFMC XML formatting; see https://github.com/TF-Minecraft/Docs/blob/main/POM-CONVENTIONS.md
 [*.xml]
 charset = utf-8
 end_of_line = lf
