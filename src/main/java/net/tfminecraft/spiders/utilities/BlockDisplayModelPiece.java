@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * One block of a model: the unit cube mapped by [transform].
- * With an [itemModel] it is drawn as an item display of that resource-pack model instead, filling
- * the same cube; [itemModelData] is its first custom model data float. [block] stays as the fallback.
+ * One block of a model: the unit cube mapped by {@code transform}.
+ * With an {@code itemModel} it is drawn as an item display of that resource-pack model instead, filling
+ * the same cube; {@code itemModelData} is its first custom model data float. {@code block} stays as the fallback.
  */
 public class BlockDisplayModelPiece {
     private BlockData block;

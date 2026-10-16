@@ -1,5 +1,6 @@
 package net.tfminecraft.spiders.utilities.inverse_kinematics;
 
+import net.tfminecraft.spiders.utilities.maths.Maths;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 
@@ -86,7 +87,6 @@ public interface IKEvaluator3D {
     }
 
     private static Vector rotationErrorVector(Quaternionf currentRotation, Quaternionf targetRotation) {
-        // Kotlin file-private constant (interfaces cannot hold private fields).
         final double EPSILON = 0.000001;
 
         Quaternionf inverseCurrent = new Quaternionf(currentRotation).invert();
@@ -99,7 +99,7 @@ public interface IKEvaluator3D {
             delta.w = -delta.w;
         }
 
-        float angle = 2 * (float) Math.acos(IKChain3D.coerceIn(delta.w, -1f, 1f));
+        float angle = 2 * (float) Math.acos(Maths.clamp(delta.w, -1f, 1f));
         float sine = (float) Math.sqrt(Math.max(1f - delta.w * delta.w, 0f));
 
         if (sine <= EPSILON || angle <= EPSILON) {

@@ -25,7 +25,6 @@ public final class Presets {
     private static final double KNEE_LEEWAY = 0.65 * Math.PI;
 
     private static final float PED_HIP_ROTATION = -(Maths.toRadians(20f));
-    private static final float BOT_HIP_ROTATION = (Maths.toRadians(40f));
 
     public static IKJoint3D hipJoint() {
         return new IKSwingTwistJoint3D(
@@ -69,18 +68,6 @@ public final class Presets {
         return segments;
     }
 
-    private static List<SegmentPlan> createRobotSegments(int segmentCount, double lengthScale) {
-        List<SegmentPlan> segments = new ArrayList<>(segmentCount);
-        for (int index = 0; index < segmentCount; index++) {
-            segments.add(switch (index) {
-                case 0 -> new SegmentPlan(lengthScale * .5, hipJoint(), DisplayModel.empty());
-                case 1 -> new SegmentPlan(lengthScale * .8, kneeJoint(KNEE_LEEWAY, true), DisplayModel.empty());
-                default -> new SegmentPlan(lengthScale, kneeJoint(), DisplayModel.empty());
-            });
-        }
-        return segments;
-    }
-
     private static void addLegPair(BodyPlan plan, Vector root, Vector rest, List<SegmentPlan> segments, float hipRotation) {
         Quaternionf orientation = new Quaternionf().rotateX(hipRotation);
         List<LegPlan> legs = new ArrayList<>(plan.getLegs());
@@ -91,36 +78,6 @@ public final class Presets {
         legs = new ArrayList<>(plan.getLegs());
         legs.add(new LegPlan(new Vector(-root.getX(), root.getY(), root.getZ()), new Vector(-rest.getX(), rest.getY(), rest.getZ()), mirrored, orientation));
         plan.setLegs(legs);
-    }
-
-    public static SpiderOptions biped(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, .0), new Vector(1.0, .0, .0), equalLength(segmentCount, segmentLength), PED_HIP_ROTATION);
-        ApplyLegModels.applyLineLegModel(options.getBodyPlan(), Material.NETHERITE_BLOCK.createBlockData());
-        return options;
-    }
-
-    public static SpiderOptions quadruped(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, .0), new Vector(0.9, .0, 0.9), equalLength(segmentCount, 0.9 * segmentLength), PED_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, .0), new Vector(1.0, .0, -1.1), equalLength(segmentCount, 1.2 * segmentLength), PED_HIP_ROTATION);
-        ApplyLegModels.applyLineLegModel(options.getBodyPlan(), Material.NETHERITE_BLOCK.createBlockData());
-        return options;
-    }
-
-    public static SpiderOptions hexapod(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, 0.1), new Vector(1.0, .0, 1.1), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, 0.0), new Vector(1.3, .0, -0.3), equalLength(segmentCount, 1.1 * segmentLength), PED_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.0, .0, -.1), new Vector(1.2, .0, -2.0), equalLength(segmentCount, 1.6 * segmentLength), PED_HIP_ROTATION);
-        ApplyLegModels.applyLineLegModel(options.getBodyPlan(), Material.NETHERITE_BLOCK.createBlockData());
-        return options;
-    }
-
-    public static SpiderOptions octopod(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        options.setBodyPlan(octopodBodyPlan(segmentCount, segmentLength));
-        return options;
     }
 
     // The shape can also be built and posed without a server's sound registry.
@@ -134,36 +91,6 @@ public final class Presets {
         return plan;
     }
 
-
-    public static SpiderOptions quadBot(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        options.getBodyPlan().setBodyModel(SpiderTorsoModels.getFLAT().clone());
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .2), new Vector(1.3 * 1.0, .0, 1.0), createRobotSegments(segmentCount, .9 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, -.2), new Vector(1.3 * 1.1, .0, -1.2), createRobotSegments(segmentCount, 1.2 * .7 * segmentLength), BOT_HIP_ROTATION);
-        ApplyLegModels.applyBotLegModel(options.getBodyPlan());
-        return options;
-    }
-
-    public static SpiderOptions hexBot(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        options.getBodyPlan().setBodyModel(SpiderTorsoModels.getFLAT().clone());
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .2), new Vector(1.3 * 1.0, .0, 1.3), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .0), new Vector(1.3 * 1.2, .0, -0.1), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, -.2), new Vector(1.3 * 1.1, .0, -1.6), createRobotSegments(segmentCount, 1.3 * .7 * segmentLength), BOT_HIP_ROTATION);
-        ApplyLegModels.applyBotLegModel(options.getBodyPlan());
-        return options;
-    }
-
-    public static SpiderOptions octoBot(int segmentCount, double segmentLength) {
-        SpiderOptions options = new SpiderOptions();
-        options.getBodyPlan().setBodyModel(SpiderTorsoModels.getFLAT().clone());
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .3), new Vector(1.3 * 1.0, .0, 1.3), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .1), new Vector(1.3 * 1.2, .0, 0.5), createRobotSegments(segmentCount, 1.0 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, .1), new Vector(1.3 * 1.2, .0, -0.7), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength), BOT_HIP_ROTATION);
-        addLegPair(options.getBodyPlan(), new Vector(.2, -.2 - .15, -.3), new Vector(1.3 * 1.1, .0, -1.6), createRobotSegments(segmentCount, 1.3 * .7 * segmentLength), BOT_HIP_ROTATION);
-        ApplyLegModels.applyBotLegModel(options.getBodyPlan());
-        return options;
-    }
 
     public static SpiderOptions defaultPreset() {
         return Cinderweaver.cinderweaver();

@@ -37,10 +37,6 @@ public final class Core {
         return currentTick;
     }
 
-    public static void setCurrentTick(int tick) {
-        currentTick = tick;
-    }
-
     public static boolean onPluginShutdown(Runnable task) {
         return closeableList.add(task::run);
     }

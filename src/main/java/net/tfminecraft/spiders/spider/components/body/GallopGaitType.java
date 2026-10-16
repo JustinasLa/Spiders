@@ -16,8 +16,6 @@ public final class GallopGaitType {
 
         if (!spider.isWalking()) return WalkGaitType.canMoveLeg(leg);
 
-//        if (spider.velocity.length() < spider.gait.maxSpeed * 0.5) return WalkGaitType.canMoveLeg(leg)
-
         // always move if the target is not on ground
         if (!leg.getTarget().isGrounded()) return true;
 

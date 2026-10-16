@@ -14,7 +14,7 @@ public final class RenderVisibility {
 
     private static Collection<? extends Player> viewers = null;
 
-    /** Runs [render] so that every entity it submits is visible to [players] alone. */
+    /** Runs {@code render} so that every entity it submits is visible to {@code players} alone. */
     public static void onlyFor(Collection<? extends Player> players, Runnable render) {
         Collection<? extends Player> outer = viewers;
         viewers = players;

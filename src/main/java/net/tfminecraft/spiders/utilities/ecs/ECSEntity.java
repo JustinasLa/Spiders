@@ -18,10 +18,6 @@ public class ECSEntity implements ECSQueryable {
         return scheduledForRemoval;
     }
 
-    public void setScheduledForRemoval(boolean scheduledForRemoval) {
-        this.scheduledForRemoval = scheduledForRemoval;
-    }
-
     public boolean isAsleep() {
         return asleep;
     }
@@ -40,11 +36,6 @@ public class ECSEntity implements ECSQueryable {
 
     public <T extends ECSComponent> void removeComponent(Class<T> clazz) {
         components.removeIf(clazz::isInstance);
-    }
-
-    public <Old extends ECSComponent> void replaceComponent(Class<Old> clazz, Old component) {
-        removeComponent(clazz);
-        addComponent(component);
     }
 
     public <T extends ECSQueryable> T query(Class<T> clazz) {

@@ -22,26 +22,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;
 
-@SuppressWarnings("unused")
 public class SpiderAnimationPlugin extends JavaPlugin {
-    public void writeAndSaveConfig() {
-//            for ((key, value) in options) {
-//                instance.config.set(key, Serializer.toMap(value()))
-//            }
-//            instance.saveConfig()
-    }
-
     @Override
     public void onDisable() {
-        getLogger().info("Disabling Spider Animation plugin");
         Core.shutdownCoreUtils(this);
         AppState.getEcs().getEntities().clear();
     }
 
     @Override
     public void onEnable() {
-        getLogger().info("Enabling Spider Animation plugin");
-
         Core.setupCoreUtils(this);
         // displays left behind by a crash or a failed shutdown
         RenderEntityTracker.removeAllByTag();
@@ -66,7 +55,6 @@ public class SpiderAnimationPlugin extends JavaPlugin {
             }
         });
 
-        ecs.start();
         Scheduler.onTick(it -> {
             SpiderActivity.updateSleep(ecs);
             ecs.update();

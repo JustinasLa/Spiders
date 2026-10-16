@@ -9,7 +9,6 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
-import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -26,15 +25,6 @@ public final class Geometry {
     public static Vector3f getYXZRelative(Quaternionf quaternion, Quaternionf pivot) {
         Quaternionf relative = new Quaternionf(pivot).difference(quaternion);
         return relative.getEulerAnglesYXZ(new Vector3f());
-    }
-
-    public static Vector3f getRotationAroundAxis(Vector vector, Quaternionf pivot) {
-        Quaternionf orientation = new Quaternionf().rotationTo(Maths.forwardVector().toVector3f(), vector.toVector3f());
-        return getYXZRelative(orientation, pivot);
-    }
-
-    public static double verticalDistance(Vector vector, Vector other) {
-        return Math.abs(vector.getY() - other.getY());
     }
 
     public static double horizontalDistance(Vector vector, Vector other) {
@@ -94,12 +84,4 @@ public final class Geometry {
         );
     }
 
-    public static Matrix4f matrixFromTransform(Transformation transformation) {
-        Matrix4f matrix = new Matrix4f();
-        matrix.translate(transformation.getTranslation());
-        matrix.rotate(transformation.getLeftRotation());
-        matrix.scale(transformation.getScale());
-        matrix.rotate(transformation.getRightRotation());
-        return matrix;
-    }
 }

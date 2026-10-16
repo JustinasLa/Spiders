@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 record Run(ECS app, ECSEntity entity, SpiderBody body, Locomotion locomotion, Gait gait, SpiderOptions options) {
 
-    /** Walks forward until [onTick] returns true or the ticks run out. */
+    /** Walks forward until {@code onTick} returns true or the ticks run out. */
     void walkForward(int ticks, IntPredicate onTick) {
         for (int tick = 0; tick < ticks; tick++) {
             locomotion.walk(body.forwardDirection().multiply(gait.getMaxSpeed()));

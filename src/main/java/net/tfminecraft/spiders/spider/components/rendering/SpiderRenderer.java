@@ -106,10 +106,6 @@ public class SpiderRenderer implements ECSComponent {
         private SpiderParticleRenderer() {
         }
 
-//    fun renderTarget(location: Location) {
-//        location.world?.spawnParticle(Particle.DUST, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
-//    }
-
         static void renderSpider(SpiderBody spider) {
             for (Leg leg : spider.getLegs()) {
                 World world = leg.getSpider().getWorld();

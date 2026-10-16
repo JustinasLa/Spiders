@@ -15,10 +15,9 @@ import java.util.logging.Logger;
  * Bevy-style Entity Component System
  */
 public class ECS {
-    private List<ECSEntity> entities = new ArrayList<>();
+    private final List<ECSEntity> entities = new ArrayList<>();
     private final List<Consumer<Object>> eventListeners = new ArrayList<>();
 
-    private final List<Consumer<ECS>> startSystems = new ArrayList<>();
     private final List<Consumer<ECS>> tickSystems = new ArrayList<>();
     private final List<Consumer<ECS>> postTickSystems = new ArrayList<>();
     private final List<Consumer<ECS>> renderSystems = new ArrayList<>();
@@ -35,19 +34,10 @@ public class ECS {
         return entities;
     }
 
-    public void setEntities(List<ECSEntity> entities) {
-        this.entities = entities;
-    }
-
-    public List<Consumer<Object>> getEventListeners() {
-        return eventListeners;
-    }
-
     public void setLogger(Logger logger) {
         this.logger = logger;
     }
 
-    public void onStart(Consumer<ECS> func) { startSystems.add(func); }
     public void onTick(Consumer<ECS> func) { tickSystems.add(func); }
     public void onPostTick(Consumer<ECS> func) { postTickSystems.add(func); }
     public void onRender(Consumer<ECS> func) { renderSystems.add(func); }
@@ -143,10 +133,6 @@ public class ECS {
             out.add(new Quintuple<>(comp1, comp2, comp3, comp4, comp5));
         }
         return out;
-    }
-
-    public void start() {
-        run(startSystems);
     }
 
     public void update() {

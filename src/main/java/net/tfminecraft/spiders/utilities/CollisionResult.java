@@ -27,18 +27,6 @@ public final class CollisionResult {
         return normal;
     }
 
-    public Vector component1() {
-        return position;
-    }
-
-    public Vector component2() {
-        return offset;
-    }
-
-    public Vector component3() {
-        return normal;
-    }
-
     @Override
     public boolean equals(Object other) {
         if (this == other) return true;

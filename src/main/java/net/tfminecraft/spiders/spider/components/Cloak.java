@@ -93,10 +93,9 @@ public class Cloak implements ECSComponent {
 
         Oklab targetColor = getTargetColor(id, world, position, originalColor, currentColor);
 
-
         float lerpAmount = (float) options.getLerpSpeed() + ((float) Math.random() - 0.5f) * (float) options.getLerpRandomness();
         Oklab newColor = moveTowards(
-            currentColor.lerp(targetColor, coerceIn(lerpAmount, 0f, 1f)),
+            currentColor.lerp(targetColor, Maths.clamp(lerpAmount, 0f, 1f)),
             targetColor, (float) options.getMoveSpeed());
 
         if (Objects.equals(newColor, originalColor)) cloakColor.remove(id);
@@ -112,7 +111,6 @@ public class Cloak implements ECSComponent {
         Color color = BlockColors.getBlockColor(block, lightLevel);
         return color != null ? Oklab.toOklab(color) : currentColor;
     }
-
 
     private BlockData lookBehind(Object id, World world, Vector position) {
         int now = Core.getCurrentTick();
@@ -189,13 +187,6 @@ public class Cloak implements ECSComponent {
 
     private static <T> T random(List<T> list) {
         return list.get(ThreadLocalRandom.current().nextInt(list.size()));
-    }
-
-    // Kotlin's coerceIn (keeps -0.0 and NaN as they are, unlike Math.clamp)
-    private static float coerceIn(float value, float min, float max) {
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
     }
 
     /** Players further than this from a piece do not steer the shroud; it copies the ground instead. */

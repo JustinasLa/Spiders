@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -30,10 +32,12 @@ class CommandLimitsTest {
     }
 
     @Test
-    @DisplayName("a preset with too many segments is refused before it is built")
-    void aPresetWithTooManySegmentsIsRefused() {
+    @DisplayName("the upstream robot presets and models are gone from /spider options")
+    void theUpstreamRobotPresetsAreGone() throws CommandSyntaxException {
         assertThrows(CommandSyntaxException.class, () -> Symbols.resolveSymbol("HEX_BOT {segments: 100000}"));
-        assertThrows(CommandSyntaxException.class, () -> Symbols.resolveSymbol("OCTOPOD {length: 1e9}"));
+        assertNull(Symbols.resolveSymbol("TORSO_BOXY"));
+        assertNotNull(Symbols.resolveSymbol("EMPTY"));
+        assertNotNull(Symbols.resolveSymbol("\u00A0EMPTY\u00A0"), "a pasted non-breaking space");
     }
 
     @Test
@@ -44,7 +48,7 @@ class CommandLimitsTest {
         when(staff.hasPermission(StaffAccess.PERMISSION)).thenReturn(true);
         when(source.getSender()).thenReturn(staff);
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-        dispatcher.register(SetupCommands.spiderCommandTree(() -> {}));
+        dispatcher.register(SetupCommands.spiderCommandTree());
         for (String command : new String[]{"spider pounce nearest", "spider pounce nearest 12", "spider pounce Steve", "spider pounce Steve 8.5"}) {
             ParseResults<CommandSourceStack> parsed = dispatcher.parse(command, source);
             assertTrue(parsed.getExceptions().isEmpty() && !parsed.getReader().canRead() && parsed.getContext().getCommand() != null, command);

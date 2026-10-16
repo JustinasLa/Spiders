@@ -28,24 +28,8 @@ public final class Maths {
         return new Vector(0, 0, 1);
     }
 
-    public static Vector backwardVector() {
-        return new Vector(0, 0, -1);
-    }
-
-    public static Vector leftVector() {
-        return new Vector(-1, 0, 0);
-    }
-
     public static Vector rightVector() {
         return new Vector(1, 0, 0);
-    }
-
-    public static Vector4f toVector4f(Vector vector) {
-        return new Vector4f((float) vector.getX(), (float) vector.getY(), (float) vector.getZ(), 1f);
-    }
-
-    public static Vector4f toVector4f(Vector3f vector) {
-        return new Vector4f(vector.x, vector.y, vector.z, 1f);
     }
 
     public static Vector3f toVector3f(Vector4f vector) {
@@ -145,10 +129,6 @@ public final class Maths {
         return toRadians(location.getPitch());
     }
 
-    public static Quaternionf getQuaternion(Location location) {
-        return new Quaternionf().rotationYXZ(yawRadians(location), pitchRadians(location), 0f);
-    }
-
     public static Vector transform(Quaterniond quaternion, Vector vector) {
         copy(vector, quaternion.transform(vector.toVector3d()));
         return vector;
@@ -205,16 +185,8 @@ public final class Maths {
         return (value - min) / (max - min);
     }
 
-    public static double denormalize(double value, double min, double max) {
-        return value * (max - min) + min;
-    }
-
     public static float normalize(float value, float min, float max) {
         return (value - min) / (max - min);
-    }
-
-    public static float denormalize(float value, float min, float max) {
-        return value * (max - min) + min;
     }
 
     public static Vector3f normal(Transformation transformation) {
@@ -293,9 +265,27 @@ public final class Maths {
         return out.multiply(1.0 / vectors.size());
     }
 
-    public static Vector3f averageVector3f(List<Vector3f> vectors) {
-        Vector3f out = new Vector3f();
-        for (Vector3f vector : vectors) out.add(vector);
-        return out.mul(1f / vectors.size());
+    /** {@code value} limited to [min, max]. Unlike {@link Math#clamp}, NaN and signed zeros pass through unchanged. */
+    public static double clamp(double value, double min, double max) {
+        if (min > max) throw new IllegalArgumentException("Empty range: maximum " + max + " is less than minimum " + min + ".");
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    /** {@code value} limited to [min, max]. Unlike {@link Math#clamp}, NaN and signed zeros pass through unchanged. */
+    public static float clamp(float value, float min, float max) {
+        if (min > max) throw new IllegalArgumentException("Empty range: maximum " + max + " is less than minimum " + min + ".");
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    /** {@code value} rounded to the nearest int, saturating at the int range; NaN is refused. */
+    public static int roundToInt(double value) {
+        if (Double.isNaN(value)) throw new IllegalArgumentException("Cannot round NaN value.");
+        if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
+        return (int) Math.round(value);
     }
 }

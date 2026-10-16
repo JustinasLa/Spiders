@@ -21,10 +21,6 @@ public enum GaitType {
         };
     }
 
-//fun hasCooldown(leg: Leg, cooldown: Int): Boolean {
-//    return /*leg.isMoving && */leg.target.isGrounded && leg.timeSinceBeginMove < cooldown
-//}
-
     public static List<Leg> unIndexLeg(SpiderBody spider, List<Integer> indices) {
         List<Leg> out = new ArrayList<>();
         List<Leg> legs = spider.getLegs();

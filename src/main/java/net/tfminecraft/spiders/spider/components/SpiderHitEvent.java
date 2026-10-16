@@ -6,8 +6,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
 /**
- * Something struck the spider's drawn shape at [point]: a projectile or a player's swing ([source]).
- * [forceful] hits push the spider and break its shroud; weak ones (a barely drawn bow) only glance off.
+ * Something struck the spider's drawn shape at {@code point}: a projectile or a player's swing ({@code source}).
+ * {@code forceful} hits push the spider and break its shroud; weak ones (a barely drawn bow) only glance off.
  */
 public class SpiderHitEvent {
     private final ECSEntity entity;

@@ -83,7 +83,7 @@ public class MeleeListener implements Listener {
         strike(event.getPlayer(), new Pair<>(seated.first(), event.getAttacked().getLocation().toVector()));
     }
 
-    /** [seat]: the spider whose seat was attacked, and where, used when the swing ray misses the drawn shape. */
+    /** {@code seat}: the spider whose seat was attacked, and where, used when the swing ray misses the drawn shape. */
     private void strike(Player player, Pair<ECSEntity, Vector> seat) {
         if (player.getGameMode() == GameMode.SPECTATOR) return;
         double charge = (double) player.getAttackCooldown();

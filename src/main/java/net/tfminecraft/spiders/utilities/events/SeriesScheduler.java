@@ -8,10 +8,6 @@ public class SeriesScheduler {
         return time;
     }
 
-    public void setTime(long time) {
-        this.time = time;
-    }
-
     public void sleep(long time) {
         this.time += time;
     }

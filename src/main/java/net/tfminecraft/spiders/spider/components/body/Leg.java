@@ -571,7 +571,7 @@ public class Leg {
         return new LegTarget(hit.getHitPosition(), true, WRAPPED_TARGET_ID);
     }
 
-    /** Offset from [from] to [to] along the surface, with the component along its normal removed. */
+    /** Offset from {@code from} to {@code to} along the surface, with the component along its normal removed. */
     private Vector planarOffset(Vector from, Vector to) {
         Vector offset = to.clone().subtract(from);
         return offset.subtract(surfaceUp.clone().multiply(offset.dot(surfaceUp)));

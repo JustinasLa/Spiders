@@ -52,7 +52,7 @@ public final class IKChainPose3D {
     }
 
     public void lerp(IKChainPose3D other, double amount) {
-        double t = IKChain3D.coerceIn(amount, 0.0, 1.0);
+        double t = Maths.clamp(amount, 0.0, 1.0);
 
         position.copy(Maths.lerp(position, other.position, t));
         orientation.slerp(other.orientation, (float) t);
