@@ -30,6 +30,8 @@ public class Leg {
     private static final double CLIMB_REACH_FRACTION = .95;
     private static final int OBSTRUCTED_TARGET_ID = -2;
     private static final int WRAPPED_TARGET_ID = -3;
+    /** Ticks between ground scans for a leg that isn't stepping (mid-leap or disabled). */
+    private static final int IDLE_SCAN_TICKS = 3;
 
     private final ECS ecs;
     private final ECSEntity entity;
@@ -66,6 +68,8 @@ public class Leg {
     private boolean isDisabled;
     private boolean isPrimary;
     private boolean canMove;
+    /** Idle ticks left before the next ground scan; starts staggered by leg so idle legs don't all scan together. */
+    private int idleScanCountdown;
 
     public Leg(ECS ecs, ECSEntity entity, SpiderBody spider, LegPlan legPlan, SpiderOptions options) {
         this.ecs = ecs;
@@ -96,6 +100,7 @@ public class Leg {
         this.isDisabled = false;
         this.isPrimary = false;
         this.canMove = false;
+        this.idleScanCountdown = Math.max(0, options.getBodyPlan().getLegs().indexOf(legPlan)) % IDLE_SCAN_TICKS;
     }
 
     public ECS getEcs() {
@@ -273,8 +278,8 @@ public class Leg {
 
         // update target
         Vector oldTargetPosition = target.getPosition().clone();
-        LegTarget ground = locateGroundTarget();
-        groundTarget = ground;
+        if (shouldScanGround()) groundTarget = locateGroundTarget();
+        LegTarget ground = groundTarget;
 
         if (isDisabled) {
             target = disabledTarget(ground != null ? ground.getPosition() : null);
@@ -326,6 +331,20 @@ public class Leg {
         }
 
         if (didStep) ecs.emit(new LegStepEvent(entity, spider, this));
+    }
+
+    /**
+     * A stepping leg scans every tick. Mid-leap or disabled, the ground is only read for body tilt
+     * and to keep a raised foot clear, so it is refreshed every {@link #IDLE_SCAN_TICKS} ticks.
+     */
+    private boolean shouldScanGround() {
+        if (!isDisabled && spider.getLeapTicks() <= 0) return true;
+        if (idleScanCountdown > 0) {
+            idleScanCountdown--;
+            return false;
+        }
+        idleScanCountdown = IDLE_SCAN_TICKS - 1;
+        return true;
     }
 
     private void applyBodyMotion(Vector point) {
