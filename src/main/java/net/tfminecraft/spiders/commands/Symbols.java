@@ -52,14 +52,13 @@ public final class Symbols {
         for (Map.Entry<Predicate<Object>, List<Symbol>> entry : symbolList().entrySet()) {
             if (!entry.getKey().test(value)) continue;
             for (Symbol symbol : entry.getValue()) {
-                String arguments = symbol.parameters.isEmpty() ? "" : " (" + symbol.signature + ")";
-                suggestions.add(new Pair<>(symbol.name, SetupCommands.describeType(value) + arguments));
+                suggestions.add(new Pair<>(symbol.name, SetupCommands.describeType(value) + symbol.hint()));
             }
         }
         return suggestions;
     }
 
-    private static final class SymbolParameter {
+    static final class SymbolParameter {
         final String name;
         final Object defaultValue;
 
@@ -70,11 +69,11 @@ public final class Symbols {
     }
 
     @FunctionalInterface
-    private interface Producer {
+    interface Producer {
         Object produce(Map<String, Object> arguments) throws CommandSyntaxException;
     }
 
-    private static final class Symbol {
+    static final class Symbol {
         final String name;
         final List<SymbolParameter> parameters;
         final Producer produce;
@@ -91,6 +90,11 @@ public final class Symbols {
 
         Symbol(String name, Producer produce) {
             this(name, List.of(), produce);
+        }
+
+        /** The arguments it takes, for a suggestion's tooltip. */
+        String hint() {
+            return parameters.isEmpty() ? "" : " (" + signature + ")";
         }
 
         Object invoke(String arguments) throws CommandSyntaxException {
@@ -199,8 +203,8 @@ public final class Symbols {
     private static Pair<String, String> parseSymbol(String raw) {
         Matcher match = SPLIT_REGEX.matcher(Strings.trim(raw));
         if (!match.matches()) return null;
-        String arguments = match.group(2);
-        return new Pair<>(match.group(1), arguments == null || arguments.isEmpty() ? null : arguments);
+        // the arguments, if given, are at least "{}"
+        return new Pair<>(match.group(1), match.group(2));
     }
 
     private static CommandSyntaxException invalid(String message) {

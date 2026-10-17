@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiPredicate;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -477,13 +477,14 @@ public final class SetupCommands {
     private static final class OptionGroup {
         final Function<CommandSourceStack, Object> live;
         final Supplier<Object> defaultValue;
-        final BiPredicate<Object, Object> swap;
+        /** Puts a checked draft in place of the live value; null for groups edited in place. */
+        final BiConsumer<Object, Object> swap;
         /** Why a draft can't be used, or null if it can; checked before the swap. */
         final Function<Object, String> validate;
         /** Why the last edit was refused, for the error message. */
         String rejection;
 
-        OptionGroup(Function<CommandSourceStack, Object> live, Supplier<Object> defaultValue, BiPredicate<Object, Object> swap, Function<Object, String> validate) {
+        OptionGroup(Function<CommandSourceStack, Object> live, Supplier<Object> defaultValue, BiConsumer<Object, Object> swap, Function<Object, String> validate) {
             this.live = live;
             this.defaultValue = defaultValue;
             this.swap = swap;
@@ -502,8 +503,10 @@ public final class SetupCommands {
             // edit a draft, check it, then swap
             Object draft = Serializer.copyOf(live);
             if (!edit.test(draft)) return false;
-            rejection = validate == null ? null : validate.apply(draft);
-            return rejection == null && swap.test(live, draft);
+            rejection = validate.apply(draft);
+            if (rejection != null) return false;
+            swap.accept(live, draft);
+            return true;
         }
     }
 
@@ -522,10 +525,7 @@ public final class SetupCommands {
                 return spider == null ? null : spider.query(SpiderOptions.class);
             },
             () -> Presets.defaultPreset(),
-            (live, draft) -> {
-                ((SpiderOptions) live).copyFrom((SpiderOptions) draft);
-                return true;
-            },
+            (live, draft) -> ((SpiderOptions) live).copyFrom((SpiderOptions) draft),
             draft -> SpiderOptionsLimits.problem((SpiderOptions) draft)
         ));
         OPTION_GROUPS.put("global", new OptionGroup(
@@ -582,13 +582,10 @@ public final class SetupCommands {
         if (current == null) return builder.buildFuture();
 
         for (Pair<String, String> suggestion : valueSuggestions(current)) {
-            String text = suggestion.first();
+            // every suggestion has a tooltip
             String tooltip = suggestion.second();
-            if (tooltip == null) builder.suggest(text);
-            else {
-                Message message = () -> tooltip;
-                builder.suggest(text, message);
-            }
+            Message message = () -> tooltip;
+            builder.suggest(suggestion.first(), message);
         }
         return builder.buildFuture();
     }
