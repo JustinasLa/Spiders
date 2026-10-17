@@ -105,6 +105,21 @@ class MimicChestsTest {
     }
 
     @Test
+    @DisplayName("only the exact tag counts: another plugin's mimic key, another key of ours, or a string value don't")
+    void onlyTheExactTagCounts() {
+        Block foreign = blocks.chest(0, 1, 0, BlockFace.NORTH, false);
+        blocks.state(foreign).getPersistentDataContainer().set(new org.bukkit.NamespacedKey("otherplugin", "mimic"), org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+        Block renamed = blocks.chest(1, 1, 0, BlockFace.NORTH, false);
+        blocks.state(renamed).getPersistentDataContainer().set(new org.bukkit.NamespacedKey("tfmcspiders", "dormant"), org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+        Block mistyped = blocks.chest(2, 1, 0, BlockFace.NORTH, false);
+        blocks.state(mistyped).getPersistentDataContainer().set(MimicWorld.MIMIC_KEY, org.bukkit.persistence.PersistentDataType.STRING, "1");
+        assertFalse(MimicChests.isMimic(foreign));
+        assertFalse(MimicChests.isMimic(renamed));
+        assertFalse(MimicChests.isMimic(mistyped));
+        assertTrue(MimicChests.isMimic(blocks.chest(3, 1, 0, BlockFace.NORTH, true)));
+    }
+
+    @Test
     @DisplayName("a mimic can sit in air or a plant on solid ground, but not in water, in a wall or in mid-air")
     void whereAMimicCanSit() {
         assertTrue(MimicChests.canRestIn(blocks.block(0, 1, 0)));
@@ -127,6 +142,8 @@ class MimicChestsTest {
         verify(data).setType(org.bukkit.block.data.type.Chest.Type.SINGLE);
         assertTrue(MimicChests.isMimic(block));
         verify(blocks.state(block)).update(true, false);
+        // the tag that survives a restart: the plugin's own mimic key, holding the byte 1
+        assertEquals((byte) 1, blocks.state(block).getPersistentDataContainer().get(MimicWorld.MIMIC_KEY, org.bukkit.persistence.PersistentDataType.BYTE));
 
         assertFalse(MimicChests.place(blocks.block(0, 0, 0), BlockFace.EAST), "into the ground");
         assertEquals(MimicWorld.GROUND, blocks.block(0, 0, 0).getType());

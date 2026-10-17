@@ -1,7 +1,6 @@
 package net.tfminecraft.spiders.spider.components;
 
 import net.tfminecraft.spiders.AppState;
-import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -410,7 +409,7 @@ class MimicLurkTest {
         BlockState gone = mock(BlockState.class);
         blocks.setState(broken, gone);
 
-        Core.shutdownCoreUtils(server.plugin);
+        server.shutdown();
         assertFalse(blocks.state(chest).isOpen());
         assertTrue(mouth().isEmpty());
         verify(blocks.state(quiet), never()).close();

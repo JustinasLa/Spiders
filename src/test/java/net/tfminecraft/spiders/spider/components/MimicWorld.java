@@ -4,6 +4,7 @@ import org.bukkit.Chunk;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -24,14 +25,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyByte;
+
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -118,14 +121,12 @@ final class MimicWorld {
         BlockData chest = MimicServer.blockData(Material.CHEST);
         ((org.bukkit.block.data.type.Chest) chest).setFacing(facing);
         block.setBlockData(chest, true);
-        if (mimic) state(block).getPersistentDataContainer().set(tagKey(), PersistentDataType.BYTE, (byte) 1);
+        if (mimic) state(block).getPersistentDataContainer().set(MIMIC_KEY, PersistentDataType.BYTE, (byte) 1);
         return block;
     }
 
-    /** Any key will do: the mimic tag's key is cached from whichever plugin asked first. */
-    private static org.bukkit.NamespacedKey tagKey() {
-        return new org.bukkit.NamespacedKey("tfmcspiders", "mimic");
-    }
+    /** The tag a dormant mimic's block entity carries: the plugin's {@code mimic} key, holding a byte. */
+    static final NamespacedKey MIMIC_KEY = new NamespacedKey("tfmcspiders", "mimic");
 
     /** The chest block entity at {@code block}. */
     Chest state(Block block) {
@@ -135,11 +136,6 @@ final class MimicWorld {
     /** Replace the block entity at {@code block}, e.g. with one that isn't a chest. */
     void setState(Block block, BlockState state) {
         states.put(block, state);
-    }
-
-    boolean isTagged(Block block) {
-        return block.getState(false) instanceof Chest chest
-            && chest.getPersistentDataContainer().has(tagKey(), PersistentDataType.BYTE);
     }
 
     Block block(int x, int y, int z) {
@@ -194,14 +190,8 @@ final class MimicWorld {
 
     private static Chest newChest(Block block) {
         Chest chest = mock(Chest.class);
-        boolean[] tagged = {false};
         boolean[] open = {false};
-        PersistentDataContainer pdc = mock(PersistentDataContainer.class);
-        when(pdc.has(any(org.bukkit.NamespacedKey.class), eq(PersistentDataType.BYTE))).thenAnswer(call -> tagged[0]);
-        doAnswer(call -> {
-            tagged[0] = true;
-            return null;
-        }).when(pdc).set(any(org.bukkit.NamespacedKey.class), eq(PersistentDataType.BYTE), anyByte());
+        PersistentDataContainer pdc = persistentData();
         when(chest.getPersistentDataContainer()).thenReturn(pdc);
         when(chest.getBlock()).thenReturn(block);
         when(chest.isOpen()).thenAnswer(call -> open[0]);
@@ -229,6 +219,37 @@ final class MimicWorld {
         when(chest.getBlockInventory()).thenReturn(inventory);
         when(chest.getInventory()).thenReturn(inventory);
         return chest;
+    }
+
+    /** A value in {@link #persistentData()}, with the primitive type it was stored as. */
+    private record Stored(Class<?> primitive, Object value) {
+    }
+
+    /**
+     * A block entity's persistent data, kept as Paper keeps it: by exact key, each value with the primitive type it
+     * was stored as, so a lookup needs the same key and a type of the same primitive.
+     */
+    static PersistentDataContainer persistentData() {
+        Map<NamespacedKey, Stored> store = new HashMap<>();
+        return mock(PersistentDataContainer.class, call -> {
+            Object[] args = call.getArguments();
+            Stored stored = args.length > 0 && args[0] instanceof NamespacedKey key ? store.get(key) : null;
+            return switch (call.getMethod().getName()) {
+                case "set" -> {
+                    store.put((NamespacedKey) args[0], new Stored(((PersistentDataType<?, ?>) args[1]).getPrimitiveType(), args[2]));
+                    yield null;
+                }
+                case "has" -> stored != null && (args.length == 1 || stored.primitive() == ((PersistentDataType<?, ?>) args[1]).getPrimitiveType());
+                case "get" -> stored != null && stored.primitive() == ((PersistentDataType<?, ?>) args[1]).getPrimitiveType() ? stored.value() : null;
+                case "remove" -> {
+                    store.remove((NamespacedKey) args[0]);
+                    yield null;
+                }
+                case "getKeys" -> Set.copyOf(store.keySet());
+                case "isEmpty" -> store.isEmpty();
+                default -> RETURNS_DEFAULTS.answer(call);
+            };
+        });
     }
 
     private Chunk chunk(int cx, int cz) {

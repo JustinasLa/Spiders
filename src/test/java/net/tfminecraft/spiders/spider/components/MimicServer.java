@@ -1,12 +1,12 @@
 package net.tfminecraft.spiders.spider.components;
 
-import net.tfminecraft.spiders.AppState;
+import net.tfminecraft.spiders.testing.AppTestSupport;
 import net.tfminecraft.spiders.utilities.Core;
+import net.tfminecraft.spiders.utilities.Disposable;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
@@ -14,7 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import org.mockito.MockedStatic;
@@ -23,85 +22,71 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * Just enough of a server for the mimic code: block data, a scheduler that keeps its tasks for the test
- * to run, online players, and a plugin. Closing it also wipes the mimics' static state, so no test sees
- * another's lurkers, haunted players, chunk tickets or spiders.
+ * Just enough of a server for the mimic code, built on {@link AppTestSupport} (which puts back the current plugin,
+ * the tick counter, the shutdown hooks, the scheduler's tick lists and the shared ECS): block data with chest
+ * facings, a scheduler that keeps its tasks for the test to run, online players, and a logger that keeps warnings.
+ * The mimics' own statics (lurkers and the lurk clock, haunted players, held chunk tickets, the cached tag key and
+ * particle block data) start empty for each test and are restored exactly on {@link #close()}.
  */
 final class MimicServer implements AutoCloseable {
     /** A task handed to the scheduler: run once after {@code delay}, or every {@code period} if a timer. */
     record Task(Runnable runnable, long delay, long period) {
     }
 
-    final JavaPlugin plugin = mock(JavaPlugin.class);
-    final Server server = mock(Server.class);
-    final PluginManager plugins = mock(PluginManager.class);
-    final BukkitScheduler scheduler = mock(BukkitScheduler.class);
+    private final AppTestSupport support = new AppTestSupport();
+    final JavaPlugin plugin = support.plugin;
+    final PluginManager plugins = support.manager;
     final List<Task> tasks = new ArrayList<>();
     final Map<UUID, Player> players = new LinkedHashMap<>();
     final List<String> warnings = new ArrayList<>();
-    private final MockedStatic<Bukkit> bukkit;
+    private final List<Disposable> hooksBefore = new ArrayList<>(shutdownHooks());
+    private final Map<Field, Object> saved = new HashMap<>();
 
     MimicServer() {
-        resetStatics();
-        Logger logger = Logger.getAnonymousLogger();
-        logger.setUseParentHandlers(false);
-        logger.addHandler(new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                warnings.add(record.getMessage());
-            }
+        save(MimicHaunt.class, "haunted");
+        save(MimicLurk.class, "lurkers");
+        save(MimicLurk.class, "tick");
+        save(nested("MimicChunkTickets"), "held");
+        save(MimicChests.class, "key");
+        save(Mimic.class, "blood");
+        save(Mimic.class, "chest");
+        // the lid and sway follow the server tick: start every test from tick 0
+        save(Core.class, "currentTick");
+        doAnswer(call -> warnings.add(call.getArgument(0))).when(support.logger).warning(anyString());
 
-            @Override
-            public void flush() {
-            }
-
-            @Override
-            public void close() {
-            }
-        });
-        when(plugin.getName()).thenReturn("TFMCSpiders");
-        when(plugin.namespace()).thenReturn("tfmcspiders");
-        when(plugin.getLogger()).thenReturn(logger);
-        when(plugin.getServer()).thenReturn(server);
-        when(server.getPluginManager()).thenReturn(plugins);
-
-        when(scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(call -> {
+        when(support.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(call -> {
             tasks.add(new Task(call.getArgument(1), call.getArgument(2), -1));
             return mock(BukkitTask.class);
         });
-        when(scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(call -> {
+        when(support.scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(call -> {
             tasks.add(new Task(call.getArgument(1), call.getArgument(2), call.getArgument(3)));
             return mock(BukkitTask.class);
         });
 
-        bukkit = mockStatic(Bukkit.class);
+        MockedStatic<Bukkit> bukkit = support.bukkit();
         bukkit.when(() -> Bukkit.createBlockData(any(Material.class))).thenAnswer(call -> blockData(call.getArgument(0)));
         bukkit.when(() -> Bukkit.createBlockData(any(Material.class), any(Consumer.class))).thenAnswer(call -> {
             BlockData data = blockData(call.getArgument(0));
             call.<Consumer<BlockData>>getArgument(1).accept(data);
             return data;
         });
-        bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
-        bukkit.when(Bukkit::getServer).thenReturn(server);
         bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenAnswer(call -> players.get(call.<UUID>getArgument(0)));
         bukkit.when(Bukkit::getOnlinePlayers).thenAnswer(call -> (Collection<?>) List.copyOf(players.values()));
-        Core.setCurrentPlugin(plugin);
     }
 
     /** Block data that remembers its material, and a facing for chests. */
@@ -111,7 +96,7 @@ final class MimicServer implements AutoCloseable {
             org.bukkit.block.data.type.Chest chest = mock(org.bukkit.block.data.type.Chest.class);
             BlockFace[] facing = {BlockFace.NORTH};
             when(chest.getFacing()).thenAnswer(call -> facing[0]);
-            org.mockito.Mockito.doAnswer(call -> {
+            doAnswer(call -> {
                 facing[0] = call.getArgument(0);
                 return null;
             }).when(chest).setFacing(any(BlockFace.class));
@@ -127,14 +112,14 @@ final class MimicServer implements AutoCloseable {
     Player player(World world, Vector feet, Vector look) {
         Player player = mock(Player.class);
         UUID uuid = UUID.randomUUID();
-        Location[] here = {feet.toLocation(world).setDirection(look)};
+        Location here = feet.toLocation(world).setDirection(look);
         when(player.getUniqueId()).thenReturn(uuid);
         when(player.isOnline()).thenReturn(true);
         when(player.getGameMode()).thenReturn(GameMode.SURVIVAL);
         when(player.getWorld()).thenReturn(world);
         when(player.getHealth()).thenReturn(20.0);
-        when(player.getLocation()).thenAnswer(call -> here[0].clone());
-        when(player.getEyeLocation()).thenAnswer(call -> here[0].clone().add(0, 1.62, 0));
+        when(player.getLocation()).thenAnswer(call -> here.clone());
+        when(player.getEyeLocation()).thenAnswer(call -> here.clone().add(0, 1.62, 0));
         players.put(uuid, player);
         return player;
     }
@@ -166,21 +151,35 @@ final class MimicServer implements AutoCloseable {
         return tasks.stream().filter(it -> it.period() < 0).toList();
     }
 
-    @Override
-    public void close() {
-        bukkit.close();
-        Core.setCurrentPlugin(null);
-        resetStatics();
+    /**
+     * The plugin stops: runs (and drops) the shutdown hooks registered during this test, as
+     * {@link Core#shutdownCoreUtils} would, leaving the hooks other code registered before it alone.
+     */
+    void shutdown() {
+        List<Disposable> added = new ArrayList<>(shutdownHooks());
+        added.removeAll(hooksBefore);
+        shutdownHooks().removeAll(added);
+        for (Disposable hook : added) hook.close();
     }
 
-    /** Lurkers, haunted players, held chunk tickets, live spiders and shutdown hooks all live in statics. */
-    static void resetStatics() {
-        ((Map<?, ?>) read(MimicHaunt.class, "haunted")).clear();
-        ((Map<?, ?>) read(MimicLurk.class, "lurkers")).clear();
-        write(MimicLurk.class, "tick", 0);
-        ((Map<?, ?>) read(nested("MimicChunkTickets"), "held")).clear();
-        ((List<?>) read(Core.class, "closeableList")).clear();
-        AppState.getEcs().getEntities().clear();
+    @Override
+    public void close() {
+        try {
+            support.close();
+        } finally {
+            restore();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Disposable> shutdownHooks() {
+        try {
+            Field field = Core.class.getDeclaredField("closeableList");
+            field.setAccessible(true);
+            return (List<Disposable>) field.get(null);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static Class<?> nested(String name) {
@@ -188,21 +187,38 @@ final class MimicServer implements AutoCloseable {
         throw new IllegalStateException(name);
     }
 
-    private static Object read(Class<?> owner, String name) {
+    /** Remember a static's value (a copy, for maps) and start this test from empty. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void save(Class<?> owner, String name) {
         try {
             Field field = owner.getDeclaredField(name);
             field.setAccessible(true);
-            return field.get(null);
+            Object value = field.get(null);
+            if (value instanceof Map map) {
+                saved.put(field, new LinkedHashMap<>(map));
+                map.clear();
+            } else {
+                saved.put(field, value);
+                field.set(null, field.getType() == int.class ? 0 : null);
+            }
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private static void write(Class<?> owner, String name, Object value) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void restore() {
         try {
-            Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(null, value);
+            for (Map.Entry<Field, Object> entry : saved.entrySet()) {
+                Field field = entry.getKey();
+                if (entry.getValue() instanceof Map previous) {
+                    Map map = (Map) field.get(null);
+                    map.clear();
+                    map.putAll(previous);
+                } else {
+                    field.set(null, entry.getValue());
+                }
+            }
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }

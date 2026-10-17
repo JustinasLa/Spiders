@@ -7,7 +7,6 @@ import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
 import net.tfminecraft.spiders.spider.presets.MimicPose;
 import net.tfminecraft.spiders.spider.presets.MimicPreset;
 import net.tfminecraft.spiders.spider.presets.MimicShape;
-import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import org.bukkit.Location;
@@ -128,7 +127,7 @@ class MimicSetupTest {
         SpiderOptions options = MimicPreset.mimic();
         app.spawn(SpiderBody.create(blocks.world, new Vector(30.5, 1.5, 30.5)), options);
 
-        Core.shutdownCoreUtils(server.plugin);
+        server.shutdown();
 
         assertTrue(MimicChests.isMimic(blocks.block(0, 1, 0)));
         assertEquals(List.of("A waking mimic at 10, 30, 10 had no room to become a chest."), server.warnings);

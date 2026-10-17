@@ -144,6 +144,11 @@ public final class AppTestSupport implements AutoCloseable {
         Core.setCurrentPlugin(previousPlugin);
     }
 
+    /** The {@link Bukkit} static mock, for tests that stub more of it; it is closed by {@link #close()}. */
+    public MockedStatic<Bukkit> bukkit() {
+        return bukkit;
+    }
+
     /** Block data that knows its material and how it is written, without a server registry. */
     public static BlockData blockData(Material material) {
         BlockData data = mock(BlockData.class);
