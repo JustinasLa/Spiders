@@ -39,21 +39,19 @@ def main():
     parser.add_argument("--jar", required=True, type=Path)
     parser.add_argument("--version", required=True)
     parser.add_argument("--stage", type=Path)
-    parser.add_argument("--dependencies", type=Path)
     args = parser.parse_args()
     try:
         source = validate(args.jar, args.version)
         if args.stage:
             if os.environ["TAG"] != f"v{args.version}":
                 raise ValueError("Release tag must match the Maven version")
-            dependencies = json.loads(args.dependencies.read_text()) if args.dependencies else []
             digest = hashlib.sha256(source.read_bytes()).hexdigest()
             metadata = {
                 "repository": os.environ["GITHUB_REPOSITORY"],
                 "commit": os.environ["GITHUB_SHA"],
                 "tag": os.environ["TAG"],
                 "run": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
-                "plugin_dependencies": dependencies,
+                "plugin_dependencies": [],
                 "artifact": source.name,
                 "sha256": digest,
             }

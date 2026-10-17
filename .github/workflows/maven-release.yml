@@ -6,9 +6,6 @@ on:
       java-version:
         required: true
         type: string
-    secrets:
-      DEPS_TOKEN:
-        required: false
 
 permissions:
   contents: read
@@ -45,14 +42,6 @@ jobs:
             exit 1
           }
           [[ "${TAG^^}" != *SNAPSHOT* ]] || exit 1
-
-      - name: Prepare pinned dependencies
-        env:
-          GH_TOKEN: ${{ secrets.DEPS_TOKEN }}
-        run: |
-          if [[ -f .github/scripts/prepare-release.sh ]]; then
-            bash .github/scripts/prepare-release.sh
-          fi
 
       - name: Set version from tag and build
         id: maven
