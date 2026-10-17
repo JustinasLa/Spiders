@@ -9,7 +9,17 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
+import net.tfminecraft.spiders.spider.components.body.SpiderBody;
+import net.tfminecraft.spiders.utilities.Core;
+import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
+import org.bukkit.Particle;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Egg;
+import org.bukkit.entity.Fireball;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
@@ -44,7 +54,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -256,6 +268,10 @@ class HitDetectorTest {
         nearby.set(List.<Entity>of(arrow.mock));
 
         assertNull(fly(run, arrow).event());
+
+        Flying<Arrow> other = shoot(run, Arrow.class, mock(Player.class));
+        nearby.set(List.<Entity>of(other.mock));
+        assertNotNull(fly(run, other).event(), "Someone else's arrow hits the ridden spider");
     }
 
     @Test
@@ -420,6 +436,298 @@ class HitDetectorTest {
         PrePlayerAttackEntityEvent event = new PrePlayerAttackEntityEvent(player, pig, true);
         new MeleeListener(run.app(), p -> 3.0).onAttackSeat(event);
         assertTrue(event.isCancelled(), "The pig attack should be replaced by a spider hit");
+        assertEquals(1, hits.size());
+    }
+
+    // --- what counts as a projectile hit
+
+    private static <T extends Projectile> T aimed(Run run, Class<T> type) {
+        return shoot(run, type, null).mock;
+    }
+
+    @Test
+    @DisplayName("stuck, spent, slow, dead and unknown projectiles pass by")
+    void stuckSpentSlowDeadAndUnknownProjectilesPassBy() {
+        AtomicReference<List<Entity>> nearby = new AtomicReference<>(Collections.emptyList());
+        Run run = standingSpider(nearby::get);
+        Arrow stuck = aimed(run, Arrow.class);
+        when(stuck.isInBlock()).thenReturn(true);
+        Trident spent = aimed(run, Trident.class);
+        when(spent.hasDealtDamage()).thenReturn(true);
+        Flying<Arrow> slow = shoot(run, Arrow.class, null);
+        slow.velocity = new Vector(0.0, 0.0, -.01);
+        Arrow dead = aimed(run, Arrow.class);
+        when(dead.isValid()).thenReturn(false);
+        Fireball unknown = aimed(run, Fireball.class);
+        Pig bystander = mock(Pig.class);
+        List<Entity> all = List.of(stuck, spent, slow.mock, dead, unknown, bystander);
+        // each sits right on the body so that, if counted, it would hit this tick
+        for (Entity it : all) {
+            if (it instanceof Projectile projectile) {
+                when(projectile.getLocation()).thenAnswer(call -> run.body().getPosition().clone().add(new Vector(0.0, 0.0, 1.5)).toLocation(run.body().getWorld()));
+            }
+        }
+        nearby.set(all);
+        List<SpiderHitEvent> hits = collectHits(run);
+        for (int i = 0; i < 5; i++) run.app().update();
+        assertTrue(hits.isEmpty(), "Hit by " + hits);
+        assertNull(ProjectileKind.of(unknown));
+    }
+
+    @Test
+    @DisplayName("an egg breaks on the spider and scatters its item")
+    void anEggBreaksOnTheSpiderAndScattersItsItem() {
+        AtomicReference<List<Entity>> nearby = new AtomicReference<>(Collections.emptyList());
+        Run run = standingSpider(nearby::get);
+        Flying<Egg> egg = shoot(run, Egg.class, null);
+        ItemStack item = mock(ItemStack.class);
+        when(egg.mock.getItem()).thenReturn(item);
+        nearby.set(List.<Entity>of(egg.mock));
+
+        Shot shot = fly(run, egg);
+        assertNotNull(shot.event());
+        assertSame(egg.mock, shot.event().getSource());
+        assertEquals(ProjectileKind.THROWN, ProjectileKind.of(egg.mock));
+        verify(egg.mock).remove();
+        verify(run.body().getWorld()).spawnParticle(eq(Particle.ITEM), any(Location.class), eq(8), anyDouble(), anyDouble(), anyDouble(), anyDouble(), eq(item));
+    }
+
+    @Test
+    @DisplayName("a wind charge bursting at the spider's centre shoves it along its flight")
+    void aWindChargeBurstingAtTheCentreShovesItAlongItsFlight() {
+        AtomicReference<List<Entity>> nearby = new AtomicReference<>(Collections.emptyList());
+        Run run = standingSpider(nearby::get);
+        Vector centre = run.body().getPosition().clone();
+        Flying<WindCharge> charge = new Flying<>(WindCharge.class, run.body().getWorld(), centre.clone(), new Vector(0.0, 0.0, -2.5), null);
+        nearby.set(List.<Entity>of(charge.mock));
+
+        Shot shot = fly(run, charge);
+        assertNotNull(shot.event());
+        assertTrue(shot.event().getPoint().distance(centre) < 1e-6, "Burst at " + shot.event().getPoint());
+        assertTrue(shot.knock().getZ() < -.3, "Wind charge shove " + shot.knock());
+        verify(charge.mock).explode();
+    }
+
+    @Test
+    @DisplayName("a saddled spider without a rider is still hit by players' arrows")
+    void aSaddledSpiderWithoutARiderIsStillHit() {
+        AtomicReference<List<Entity>> nearby = new AtomicReference<>(Collections.emptyList());
+        Run run = standingSpider(nearby::get);
+        run.entity().addComponent(new Mountable());
+        Flying<Arrow> arrow = shoot(run, Arrow.class, mock(Player.class));
+        nearby.set(List.<Entity>of(arrow.mock));
+        assertNotNull(fly(run, arrow).event());
+    }
+
+    @Test
+    @DisplayName("a projectile hit on nothing does not concern the seats")
+    @SuppressWarnings("removal")
+    void aProjectileHitOnNothingDoesNotConcernTheSeats() {
+        ECS app = new ECS();
+        app.spawn(new Mountable());
+        ProjectileHitEvent event = new ProjectileHitEvent(mock(Arrow.class));
+        new SeatProjectileListener(app).onHit(event);
+        assertFalse(event.isCancelled());
+    }
+
+    @Test
+    @DisplayName("projectile kinds push in order of weight")
+    void projectileKindsPushInOrderOfWeight() {
+        assertTrue(ProjectileKind.WIND_CHARGE.getWeight() > ProjectileKind.TRIDENT.getWeight());
+        assertTrue(ProjectileKind.TRIDENT.getWeight() > ProjectileKind.ARROW.getWeight());
+        assertTrue(ProjectileKind.ARROW.getWeight() > ProjectileKind.THROWN.getWeight());
+        assertEquals(0.0, ProjectileKind.WIND_CHARGE.getMinForcefulSpeed());
+        assertEquals(ProjectileKind.WIND_CHARGE, ProjectileKind.of(mock(WindCharge.class)));
+        assertEquals(ProjectileKind.THROWN, ProjectileKind.of(mock(Snowball.class)));
+        assertEquals(ProjectileKind.ARROW, ProjectileKind.of(mock(Arrow.class)));
+        assertEquals(ProjectileKind.TRIDENT, ProjectileKind.of(mock(Trident.class)));
+    }
+
+    // --- more melee
+
+    private Player fighterAt(Run run, double distance) {
+        return fighter(run.body().getWorld(), run.body().getPosition().clone().add(new Vector(0.0, .3, distance)), new Vector(0.0, -.1, -1.0));
+    }
+
+    private static List<SpiderHitEvent> swingWith(Run run, MeleeListener listener, Player player) {
+        List<SpiderHitEvent> hits = collectHits(run);
+        listener.onSwing(new PlayerArmSwingEvent(player, EquipmentSlot.HAND));
+        return hits;
+    }
+
+    @Test
+    @DisplayName("players reach as far as their interaction range, or the vanilla reach without one")
+    void playersReachAsFarAsTheirInteractionRange() {
+        Run run = standingSpider();
+        MeleeListener listener = new MeleeListener(run.app());
+
+        Player shortArmed = fighterAt(run, 3.2);
+        AttributeInstance range = mock(AttributeInstance.class);
+        when(range.getValue()).thenReturn(.5);
+        when(shortArmed.getAttribute(Attribute.ENTITY_INTERACTION_RANGE)).thenReturn(range);
+        assertTrue(swingWith(run, listener, shortArmed).isEmpty(), "A half-block reach hit from 3 blocks");
+
+        Player longArmed = fighterAt(run, 3.2);
+        AttributeInstance longRange = mock(AttributeInstance.class);
+        when(longRange.getValue()).thenReturn(4.0);
+        when(longArmed.getAttribute(Attribute.ENTITY_INTERACTION_RANGE)).thenReturn(longRange);
+        assertEquals(1, swingWith(run, listener, longArmed).size());
+
+        // without the attribute: 3 blocks in survival, 5 in creative
+        Player survival = fighterAt(run, 4.6);
+        assertTrue(swingWith(run, listener, survival).isEmpty());
+        Player creative = fighterAt(run, 4.6);
+        when(creative.getGameMode()).thenReturn(GameMode.CREATIVE);
+        assertEquals(1, swingWith(run, listener, creative).size());
+    }
+
+    @Test
+    @DisplayName("a wall takes a swing at the spider, but not an attack on its seat")
+    void aWallTakesASwingButNotAnAttackOnItsSeat() {
+        World walled = new Room((x, y, z) -> x >= -20 && x <= 20 && z >= -20 && z <= 20 && ((y >= -3 && y <= -1) || (z == 3 && y >= 0 && y <= 100))).world();
+        Run run = standingSpider(.8, walled);
+        MeleeListener listener = new MeleeListener(run.app(), p -> 5.0);
+        Player player = fighter(walled, run.body().getPosition().clone().add(new Vector(0.0, .3, 4.6)), new Vector(0.0, -.1, -1.0));
+        assertTrue(swingWith(run, listener, player).isEmpty(), "Hit through a wall");
+
+        Pig pig = mock(Pig.class);
+        when(pig.getLocation()).thenAnswer(call -> run.body().getPosition().toLocation(walled));
+        Mountable mountable = new Mountable();
+        mountable.setCurrentPig(pig);
+        run.entity().addComponent(mountable);
+        List<SpiderHitEvent> hits = collectHits(run);
+        listener.onAttackSeat(new PrePlayerAttackEntityEvent(player, pig, true));
+        assertEquals(1, hits.size());
+        assertTrue(hits.get(0).getPoint().getZ() > run.body().getPosition().getZ(), "The swing lands on the drawn shape: " + hits.get(0).getPoint());
+    }
+
+    @Test
+    @DisplayName("off-hand and spectator swings do nothing")
+    void offHandAndSpectatorSwingsDoNothing() {
+        Run run = standingSpider();
+        MeleeListener listener = new MeleeListener(run.app(), p -> 3.0);
+        List<SpiderHitEvent> hits = collectHits(run);
+        listener.onSwing(new PlayerArmSwingEvent(fighterAt(run, 3.2), EquipmentSlot.OFF_HAND));
+        Player spectator = fighterAt(run, 3.2);
+        when(spectator.getGameMode()).thenReturn(GameMode.SPECTATOR);
+        listener.onSwing(new PlayerArmSwingEvent(spectator, EquipmentSlot.HAND));
+        assertTrue(hits.isEmpty());
+    }
+
+    @Test
+    @DisplayName("left clicks and old right clicks don't hold back the next swing")
+    void leftClicksAndOldRightClicksDontHoldBackTheNextSwing() {
+        Run run = standingSpider();
+        MeleeListener listener = new MeleeListener(run.app(), p -> 3.0);
+        Player player = fighterAt(run, 3.2);
+        int tickBefore = Core.getCurrentTick();
+        try {
+            ComponentServer.setTick(100);
+            listener.onUse(new PlayerInteractEvent(player, Action.LEFT_CLICK_BLOCK, null, null, BlockFace.UP));
+            assertEquals(1, swingWith(run, listener, player).size(), "A left click is an attack");
+
+            listener.onUse(new PlayerInteractEvent(player, Action.RIGHT_CLICK_AIR, null, null, BlockFace.UP));
+            assertTrue(swingWith(run, listener, player).isEmpty(), "The swing of a right click");
+
+            listener.onUseEntity(new PlayerInteractEntityEvent(player, mock(Pig.class)));
+            ComponentServer.setTick(101);
+            assertTrue(swingWith(run, listener, player).isEmpty(), "The swing of a right click on an entity, a tick late");
+            ComponentServer.setTick(105);
+            assertEquals(1, swingWith(run, listener, player).size(), "A swing well after a right click is an attack");
+        } finally {
+            ComponentServer.setTick(tickBefore);
+        }
+    }
+
+    @Test
+    @DisplayName("riders, other worlds and spiders without hit detection can't be struck")
+    void ridersOtherWorldsAndSpidersWithoutHitDetectionCantBeStruck() {
+        Run run = standingSpider();
+        MeleeListener listener = new MeleeListener(run.app(), p -> 3.0);
+
+        Player elsewhere = fighterAt(run, 3.2);
+        when(elsewhere.getWorld()).thenReturn(mock(World.class));
+        assertTrue(swingWith(run, listener, elsewhere).isEmpty());
+
+        Player rider = fighterAt(run, 3.2);
+        ArmorStand marker = mock(ArmorStand.class);
+        when(marker.getPassengers()).thenReturn(List.of(rider));
+        Mountable mountable = new Mountable();
+        mountable.setCurrentMarker(marker);
+        run.entity().addComponent(mountable);
+        assertTrue(swingWith(run, listener, rider).isEmpty());
+        assertEquals(1, swingWith(run, listener, fighterAt(run, 3.2)).size(), "A bystander still hits the ridden spider");
+
+        run.entity().removeComponent(HitDetector.class);
+        assertTrue(swingWith(run, listener, fighterAt(run, 3.2)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("a swing strikes the nearest of two spiders in line")
+    void aSwingStrikesTheNearestOfTwoSpidersInLine() {
+        for (double second : List.of(2.5, -2.0)) {
+            Run run = standingSpider();
+            SpiderBody other = SpiderBody.create(run.body().getWorld(), run.body().getPosition().clone().add(new Vector(0.0, 0.0, second)));
+            ECSEntity otherEntity = run.app().spawn(other, run.options(), new HitDetector());
+            Player player = fighter(run.body().getWorld(), run.body().getPosition().clone().add(new Vector(0.0, .3, 5.0)), new Vector(0.0, 0.0, -1.0));
+            List<SpiderHitEvent> hits = swingWith(run, new MeleeListener(run.app(), p -> 8.0), player);
+            assertEquals(1, hits.size());
+            assertSame(second > 0 ? otherEntity : run.entity(), hits.get(0).getEntity(), "Second spider at " + second);
+        }
+    }
+
+    @Test
+    @DisplayName("a swing from inside the body lands where the player stands")
+    void aSwingFromInsideTheBodyLandsWhereThePlayerStands() {
+        Run run = standingSpider();
+        Vector eye = run.body().getPosition().clone();
+        Player player = fighter(run.body().getWorld(), eye, new Vector(0.0, 0.0, -1.0));
+        List<SpiderHitEvent> hits = swingWith(run, new MeleeListener(run.app(), p -> 3.0), player);
+        assertEquals(1, hits.size());
+        assertTrue(hits.get(0).getPoint().distance(eye) < 1e-6, "Hit at " + hits.get(0).getPoint());
+    }
+
+    @Test
+    @DisplayName("seat attacks go to the spider whose seat it is, if it is a whole spider")
+    void seatAttacksGoToTheSpiderWhoseSeatItIs() {
+        Run run = standingSpider();
+        ArmorStand marker = mock(ArmorStand.class);
+        when(marker.getLocation()).thenAnswer(call -> run.body().getPosition().clone().add(new Vector(0.0, .3, 0.0)).toLocation(run.body().getWorld()));
+        Mountable mountable = new Mountable();
+        mountable.setCurrentMarker(marker);
+        run.entity().addComponent(mountable);
+        MeleeListener listener = new MeleeListener(run.app(), p -> 3.0);
+        List<SpiderHitEvent> hits = collectHits(run);
+        // a player far above, looking away: only the seat attack can land
+        Player player = fighter(run.body().getWorld(), run.body().getPosition().clone().add(new Vector(0.0, 30.0, 0.0)), new Vector(0.0, 1.0, 0.0));
+
+        PrePlayerAttackEntityEvent onMarker = new PrePlayerAttackEntityEvent(player, marker, true);
+        listener.onAttackSeat(onMarker);
+        assertTrue(onMarker.isCancelled());
+        assertEquals(1, hits.size());
+        assertSame(run.entity(), hits.get(0).getEntity());
+
+        PrePlayerAttackEntityEvent onOther = new PrePlayerAttackEntityEvent(player, mock(Pig.class), true);
+        listener.onAttackSeat(onOther);
+        assertFalse(onOther.isCancelled());
+        assertEquals(1, hits.size());
+
+        // seats left behind by a spider that is no longer whole
+        Pig loosePig = mock(Pig.class);
+        when(loosePig.getLocation()).thenReturn(new Location(run.body().getWorld(), 0.0, 0.0, 0.0));
+        Mountable loose = new Mountable();
+        loose.setCurrentPig(loosePig);
+        run.app().spawn(loose);
+        Pig bodyOnlyPig = mock(Pig.class);
+        when(bodyOnlyPig.getLocation()).thenReturn(new Location(run.body().getWorld(), 0.0, 0.0, 0.0));
+        Mountable bodyOnly = new Mountable();
+        bodyOnly.setCurrentPig(bodyOnlyPig);
+        run.app().spawn(SpiderBody.create(run.body().getWorld(), new Vector(40.0, 0.0, 40.0)), bodyOnly);
+        for (Pig pig : List.of(loosePig, bodyOnlyPig)) {
+            PrePlayerAttackEntityEvent event = new PrePlayerAttackEntityEvent(player, pig, true);
+            listener.onAttackSeat(event);
+            assertTrue(event.isCancelled(), "The seat pig must never be hurt");
+        }
         assertEquals(1, hits.size());
     }
 }

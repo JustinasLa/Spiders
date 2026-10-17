@@ -45,9 +45,9 @@ public final class SpiderShape {
 
     private static SegmentPlan segmentAt(BodyPlan plan, int legIndex, int segmentIndex) {
         List<LegPlan> legs = plan.getLegs();
-        if (legIndex < 0 || legIndex >= legs.size()) return null;
+        if (legIndex >= legs.size()) return null;
         List<SegmentPlan> segments = legs.get(legIndex).getSegments();
-        if (segmentIndex < 0 || segmentIndex >= segments.size()) return null;
+        if (segmentIndex >= segments.size()) return null;
         return segments.get(segmentIndex);
     }
 

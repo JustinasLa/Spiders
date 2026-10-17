@@ -1,5 +1,13 @@
 package net.tfminecraft.spiders.spider.components;
 
+import net.tfminecraft.spiders.spider.components.body.Leg;
+import net.tfminecraft.spiders.spider.components.body.SpiderBody;
+import net.tfminecraft.spiders.spider.configuration.BodyPlan;
+import net.tfminecraft.spiders.spider.configuration.Gait;
+import net.tfminecraft.spiders.spider.configuration.PounceOptions;
+import net.tfminecraft.spiders.spider.configuration.SpiderOptions;
+import net.tfminecraft.spiders.utilities.ecs.ECS;
+import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterAll;
@@ -16,6 +24,11 @@ import static net.tfminecraft.spiders.spider.components.SimulationHarness.spawn;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class PounceTest {
     @BeforeAll
@@ -191,5 +204,151 @@ class PounceTest {
         assertTrue(result.leapt(), "Never leapt:\n" + label);
         assertTrue(run.body().getPosition().getY() < 3, "Did not drop to the floor:\n" + label);
         assertTrue(planar(run.body().getPosition(), target) < 3.0, "Dropped too far from the target:\n" + label);
+    }
+
+    // --- one tick at a time, on a body whose legs the test sets
+
+    private static Leg leg(boolean grounded) {
+        Leg leg = mock(Leg.class);
+        when(leg.isGrounded()).thenReturn(grounded);
+        return leg;
+    }
+
+    private record Bench(SpiderBody body, SpiderOptions options, Locomotion locomotion, Gait gait) {
+    }
+
+    private static Bench bench(boolean gallop, boolean grounded) {
+        Gait gait = Gait.defaultGallop();
+        SpiderOptions options = mock(SpiderOptions.class);
+        when(options.getGallop()).thenReturn(gallop);
+        when(options.getGallopGait()).thenReturn(gait);
+        when(options.getPounce()).thenReturn(new PounceOptions());
+        when(options.getBodyPlan()).thenReturn(new BodyPlan());
+        SpiderBody body = SpiderBody.create(mock(World.class), new Vector(.5, 64.0, .5));
+        body.setLegs(List.of(leg(grounded), leg(grounded)));
+        return new Bench(body, options, new Locomotion(), gait);
+    }
+
+    @Test
+    @DisplayName("without footing it runs at the target instead of leaping")
+    void withoutFootingItRunsAtTheTarget() {
+        Bench bench = bench(true, false);
+        Pounce pounce = new Pounce(() -> new Vector(.5, 64.0, 3.5));
+        assertNull(pounce.update(bench.body(), bench.options(), bench.locomotion()));
+        assertEquals(Pounce.Phase.CHASE, pounce.getPhase());
+        assertEquals(1, pounce.getTicks());
+        assertFalse(pounce.getRestoreWalk(), "Gallop was already on");
+        assertTrue(bench.locomotion().getWalkVelocity().getZ() > 0, "Not running at the target");
+        assertTrue(bench.locomotion().getFaceDirection().getZ() > .99);
+    }
+
+    @Test
+    @DisplayName("a target right underneath is leapt at straight up")
+    void aTargetRightUnderneathIsLeptAtStraightUp() {
+        Bench bench = bench(true, true);
+        Pounce pounce = new Pounce(() -> new Vector(.5, 60.0, .5));
+        assertNull(pounce.update(bench.body(), bench.options(), bench.locomotion()));
+        assertEquals(Pounce.Phase.AIRBORNE, pounce.getPhase());
+        assertEquals(0, pounce.getTicks());
+        Vector launch = bench.body().getVelocity();
+        assertEquals(0.0, Math.hypot(launch.getX(), launch.getZ()), 1e-9);
+        assertTrue(launch.getY() > 0);
+        assertTrue(bench.body().getLeapTicks() > 0);
+        // still flying while the leap lasts
+        assertNull(pounce.update(bench.body(), bench.options(), bench.locomotion()));
+    }
+
+    @Test
+    @DisplayName("a leap that never comes down is cut short, and so is a landing that never finds footing")
+    void aLeapThatNeverComesDownIsCutShort() {
+        Bench bench = bench(true, true);
+        bench.gait().setGravityAcceleration(0.0);
+        bench.gait().setAirDragCoefficient(0.0);
+        Pounce pounce = new Pounce(() -> new Vector(.5, 64.0, 1.5));
+        pounce.update(bench.body(), bench.options(), bench.locomotion());
+        assertEquals(Pounce.MAX_FLIGHT_TICKS, bench.body().getLeapTicks());
+
+        // the leap is over but no leg has a hold
+        bench.body().leap(new Vector(), 0);
+        bench.body().setLegs(List.of(leg(false), leg(false)));
+        Pounce.Outcome outcome = null;
+        int ticks = 0;
+        while (outcome == null && ticks < 1000) {
+            outcome = pounce.update(bench.body(), bench.options(), bench.locomotion());
+            ticks++;
+        }
+        assertEquals(Pounce.Outcome.LANDED, outcome);
+        assertEquals(Pounce.MAX_LANDING_TICKS, ticks);
+
+        Pounce footed = new Pounce(() -> new Vector(.5, 64.0, 1.5));
+        bench.body().setLegs(List.of(leg(true), leg(true)));
+        footed.update(bench.body(), bench.options(), bench.locomotion());
+        bench.body().leap(new Vector(), 0);
+        assertEquals(Pounce.Outcome.LANDED, footed.update(bench.body(), bench.options(), bench.locomotion()));
+    }
+
+    @Test
+    @DisplayName("a walking spider gallops for the pounce and walks again after")
+    void aWalkingSpiderGallopsForThePounceAndWalksAgainAfter() {
+        Bench bench = bench(false, false);
+        Pounce.Outcome[] outcome = {null};
+        Double[] distance = {0.0};
+        Vector[] target = {new Vector(3.5, 64.0, 4.5)};
+        Pounce pounce = new Pounce(() -> target[0], (result, landed) -> {
+            outcome[0] = result;
+            distance[0] = landed;
+        });
+        assertNotNull(pounce.getTarget());
+        assertNotNull(pounce.getOnEnd());
+        pounce.update(bench.body(), bench.options(), bench.locomotion());
+        verify(bench.options()).setGallop(true);
+        assertTrue(pounce.getRestoreWalk());
+
+        // the target vanished as it landed: the distance is to where it was last seen
+        target[0] = null;
+        pounce.finish(bench.options(), bench.body(), Pounce.Outcome.LANDED);
+        verify(bench.options()).setGallop(false);
+        assertFalse(pounce.getRestoreWalk());
+        assertEquals(Pounce.Outcome.LANDED, outcome[0]);
+        assertEquals(5.0, distance[0], 1e-9);
+    }
+
+    @Test
+    @DisplayName("ending without a body, options or any sighting reports no distance")
+    void endingWithoutABodyOptionsOrSightingReportsNoDistance() {
+        Double[] distance = {0.0};
+        Pounce never = new Pounce(() -> null, (result, landed) -> distance[0] = landed);
+        never.finish(null, null, Pounce.Outcome.LANDED);
+        assertNull(distance[0]);
+        distance[0] = 0.0;
+        never.finish(null, SpiderBody.create(mock(World.class), new Vector()), Pounce.Outcome.LANDED);
+        assertNull(distance[0]);
+        distance[0] = 0.0;
+        never.finish(null, SpiderBody.create(mock(World.class), new Vector()), Pounce.Outcome.GAVE_UP);
+        assertNull(distance[0]);
+
+        // the default listener ignores the outcome; without options there is no gait to put back
+        Bench bench = bench(false, false);
+        Pounce quiet = new Pounce(() -> new Vector(.5, 64.0, 9.5));
+        quiet.update(bench.body(), bench.options(), bench.locomotion());
+        assertTrue(quiet.getRestoreWalk());
+        quiet.finish(null, null, Pounce.Outcome.STOPPED);
+        assertFalse(quiet.getRestoreWalk());
+        verify(bench.options(), org.mockito.Mockito.never()).setGallop(false);
+    }
+
+    @Test
+    @DisplayName("stopping a pounce reports it stopped; stopping none does nothing")
+    void stoppingAPounceReportsItStopped() {
+        ECS app = new ECS();
+        ECSEntity idle = app.spawn(SpiderBody.create(mock(World.class), new Vector()));
+        Pounce.stopPounce(idle);
+        assertNull(idle.query(Pounce.class));
+
+        Pounce.Outcome[] outcome = {null};
+        ECSEntity hunting = app.spawn(new Pounce(() -> new Vector(), (result, landed) -> outcome[0] = result));
+        Pounce.stopPounce(hunting);
+        assertNull(hunting.query(Pounce.class));
+        assertEquals(Pounce.Outcome.STOPPED, outcome[0]);
     }
 }
