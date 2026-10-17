@@ -90,6 +90,14 @@ public final class TestRegistryAccess implements RegistryAccess {
         return registry;
     }
 
+    /** Bukkit casts some registry values to a nested {@code Typed} subtype (e.g. {@code BlockType.Typed}); mock that one. */
+    private static Class<?> mockedType(Class<?> type) {
+        for (Class<?> nested : type.getDeclaredClasses()) {
+            if (nested.getSimpleName().equals("Typed") && type.isAssignableFrom(nested)) return nested;
+        }
+        return type;
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Object entry(Class<?> type, NamespacedKey key) {
         if (type.isEnum()) {
@@ -100,7 +108,7 @@ public final class TestRegistryAccess implements RegistryAccess {
                 return null;
             }
         }
-        Keyed entry = (Keyed) mock(type);
+        Keyed entry = (Keyed) mock(mockedType(type));
         when(entry.getKey()).thenReturn(key);
         when(entry.key()).thenReturn(key);
         return entry;
