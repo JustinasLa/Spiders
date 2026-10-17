@@ -220,8 +220,4 @@ public final class SpiderDebugRenderEntities {
             }
         );
     }
-
-    private static Vector upVector(Vector vector) {
-        return vector.getX() + vector.getZ() != 0.0 ? Maths.upVector() : Maths.forwardVector();
-    }
 }

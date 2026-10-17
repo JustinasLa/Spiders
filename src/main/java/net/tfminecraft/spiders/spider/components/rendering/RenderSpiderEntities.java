@@ -98,9 +98,9 @@ public final class RenderSpiderEntities {
 
     private static SegmentPlan segmentPlan(SpiderOptions options, int legIndex, int segmentIndex) {
         List<LegPlan> legPlans = options.getBodyPlan().getLegs();
-        if (legIndex < 0 || legIndex >= legPlans.size()) return null;
+        if (legIndex >= legPlans.size()) return null;
         List<SegmentPlan> segments = legPlans.get(legIndex).getSegments();
-        if (segments == null || segmentIndex < 0 || segmentIndex >= segments.size()) return null;
+        if (segments == null || segmentIndex >= segments.size()) return null;
         return segments.get(segmentIndex);
     }
 
@@ -299,8 +299,7 @@ public final class RenderSpiderEntities {
         }
 
         private void count(int value) {
-            if (recording) recorded.add(value);
-            else same = same && cursor < recorded.size() && recorded.get(cursor++) instanceof Integer it && it == value;
+            equal(value);
         }
     }
 
