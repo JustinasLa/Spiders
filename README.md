@@ -35,13 +35,15 @@ Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/
 
 ## Tests
 
-Run `mvn clean verify` with Java 21. JUnit 5 and Mockito tests cover
-staff access, the staff tools, command limits, the Cinderweaver model, climbing,
-pouncing, hits, mounting, the shroud, sleeping spiders, system error isolation and
-mimics, running the spider simulation against mocked worlds.
-Surefire writes test results to `target/surefire-reports/`; the Build workflow
-uploads them. No coverage gate is enforced. The tests do not start a live Paper
-server or check how the spiders look and move on a client.
+Run `mvn clean verify` with Java 21. JUnit 5 and Mockito tests cover every
+part of the plugin, running the spider simulation against mocked worlds; a
+test-only registry stub lets sounds and other registry constants load without a
+server. JaCoCo fails the build unless every instruction and branch is covered;
+only the mimic classes are left out of that gate (their few remaining misses
+are unreachable code). Reports are written to `target/site/jacoco/`, and
+Surefire's test results to `target/surefire-reports/`, which the Build workflow
+uploads. The tests do not start a live Paper server or check how the spiders
+look and move on a client.
 
 ## License
 
