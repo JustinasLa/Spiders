@@ -669,13 +669,14 @@ public final class SetupCommands {
         private static List<String> createBlockIds() {
             List<String> ids = new ArrayList<>();
             for (Material material : Material.values()) {
-                if (material.isBlock()) ids.add(material.getKey().toString());
+                // legacy materials report isBlock() but have no key; getKey() throws for them
+                if (!material.isLegacy() && material.isBlock()) ids.add(material.getKey().toString());
             }
             return ids;
         }
     }
 
-    private static List<String> getBlockIds() {
+    static List<String> getBlockIds() {
         return BlockIdsHolder.BLOCK_IDS;
     }
 }
