@@ -8,6 +8,7 @@ import net.tfminecraft.spiders.utilities.custom_items.StaffTool;
 import net.tfminecraft.spiders.utilities.custom_items.StaffToolMenu;
 import net.tfminecraft.spiders.utilities.ecs.ECS;
 import net.tfminecraft.spiders.utilities.events.Scheduler;
+import net.tfminecraft.spiders.utilities.rendering.RenderEntityTracker;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -35,6 +36,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,6 +78,8 @@ public final class AppTestSupport implements AutoCloseable {
     private final List<Runnable> previousTickHandlers;
     private final List<Runnable> previousTickEndHandlers;
     private final Set<Object> previousDebugViewers;
+    private final int previousTick;
+    private final List<Object> previousShutdownHooks;
 
     public AppTestSupport() {
         this(mock(JavaPlugin.class));
@@ -111,11 +115,16 @@ public final class AppTestSupport implements AutoCloseable {
         bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenAnswer(call -> online.stream()
             .filter(player -> call.getArgument(0).equals(player.getUniqueId())).findFirst().orElse(null));
 
+        // one-time initialisers register hooks that never come back: run them now so they are part of the baseline
+        initialise(RenderEntityTracker.class);
+
         previousTools = new ArrayList<>(StaffToolMenu.getStaffTools());
         previousToolComponents = new ArrayList<>(toolComponents());
         previousTickHandlers = new ArrayList<>(tickHandlers("main"));
         previousTickEndHandlers = new ArrayList<>(tickHandlers("end"));
         previousDebugViewers = new HashSet<>(debugViewers());
+        previousTick = Core.getCurrentTick();
+        previousShutdownHooks = new ArrayList<>(shutdownHooks());
         clearSharedEcs();
     }
 
@@ -129,6 +138,8 @@ public final class AppTestSupport implements AutoCloseable {
         restore(tickHandlers("end"), previousTickEndHandlers);
         debugViewers().clear();
         debugViewers().addAll(previousDebugViewers);
+        write(Core.class, "currentTick", previousTick);
+        restore(shutdownHooks(), previousShutdownHooks);
         bukkit.close();
         Core.setCurrentPlugin(previousPlugin);
     }
@@ -159,8 +170,9 @@ public final class AppTestSupport implements AutoCloseable {
     }
 
     /**
-     * A staff tool of {@code material} whose meta keeps what is written to it, like a real item. The tool's own tag
-     * is read from the item's container; values written through {@link ItemStack#setItemMeta} land in {@link #store}.
+     * A staff tool of {@code material} whose metadata behaves like Paper's: {@link ItemStack#getItemMeta()} hands out a
+     * copy, and edits to that copy's persistent data only reach the item ({@link Tool#store}) once it is committed with
+     * {@link ItemStack#setItemMeta}. The tool's own tag is read from the item's container.
      */
     public static Tool tool(Material material) {
         return new Tool(material);
@@ -168,24 +180,39 @@ public final class AppTestSupport implements AutoCloseable {
 
     public static final class Tool {
         public final ItemStack item = mock(ItemStack.class);
-        public final ItemMeta meta = mock(ItemMeta.class);
-        /** The item meta's persistent data, by key. */
+        /** The item's committed persistent data, by key. */
         public final Map<NamespacedKey, Object> store = new HashMap<>();
+        /** Each handed-out meta copy and its uncommitted persistent data. */
+        private final Map<ItemMeta, Map<NamespacedKey, Object>> copies = new IdentityHashMap<>();
 
         private Tool(Material material) {
             when(item.getType()).thenReturn(material);
             PersistentDataContainer tag = mock(PersistentDataContainer.class);
             when(item.getPersistentDataContainer()).thenReturn(tag);
             when(tag.get(any(NamespacedKey.class), eq(PersistentDataType.BOOLEAN))).thenReturn(true);
-            PersistentDataContainer data = mock(PersistentDataContainer.class);
-            when(meta.getPersistentDataContainer()).thenReturn(data);
-            when(data.get(any(NamespacedKey.class), any(PersistentDataType.class))).thenAnswer(call -> store.get(call.<NamespacedKey>getArgument(0)));
-            doAnswer(call -> store.put(call.getArgument(0), call.getArgument(2))).when(data).set(any(NamespacedKey.class), any(PersistentDataType.class), any());
-            doAnswer(call -> store.remove(call.<NamespacedKey>getArgument(0))).when(data).remove(any(NamespacedKey.class));
-            when(item.getItemMeta()).thenReturn(meta);
+            when(item.getItemMeta()).thenAnswer(call -> copy());
+            when(item.setItemMeta(any())).thenAnswer(call -> {
+                Map<NamespacedKey, Object> edited = copies.get(call.<ItemMeta>getArgument(0));
+                if (edited == null) return false;
+                store.clear();
+                store.putAll(edited);
+                return true;
+            });
         }
 
-        /** The stored value whose key ends in {@code key}. */
+        private ItemMeta copy() {
+            Map<NamespacedKey, Object> pending = new HashMap<>(store);
+            ItemMeta meta = mock(ItemMeta.class);
+            PersistentDataContainer data = mock(PersistentDataContainer.class);
+            when(meta.getPersistentDataContainer()).thenReturn(data);
+            when(data.get(any(NamespacedKey.class), any(PersistentDataType.class))).thenAnswer(call -> pending.get(call.<NamespacedKey>getArgument(0)));
+            doAnswer(call -> pending.put(call.getArgument(0), call.getArgument(2))).when(data).set(any(NamespacedKey.class), any(PersistentDataType.class), any());
+            doAnswer(call -> pending.remove(call.<NamespacedKey>getArgument(0))).when(data).remove(any(NamespacedKey.class));
+            copies.put(meta, pending);
+            return meta;
+        }
+
+        /** The committed value whose key ends in {@code key}. */
         public Object stored(String key) {
             for (Map.Entry<NamespacedKey, Object> entry : store.entrySet()) {
                 if (entry.getKey().getKey().equals(key)) return entry.getValue();
@@ -255,6 +282,29 @@ public final class AppTestSupport implements AutoCloseable {
             Class<?> schedule = Class.forName(Scheduler.class.getName() + "$TickSchedule");
             return (List<Runnable>) read(schedule, which, null);
         } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> shutdownHooks() {
+        return (List<Object>) read(Core.class, "closeableList", null);
+    }
+
+    private static void initialise(Class<?> type) {
+        try {
+            Class.forName(type.getName(), true, type.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void write(Class<?> owner, String name, Object value) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
+        } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
     }

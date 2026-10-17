@@ -123,7 +123,6 @@ class SetupItemsTest {
         assertFalse(options.getClimbing());
         verify(world).playSound(argThat((Location at) -> at.toVector().equals(new Vector(5.5, 63.0, 0.5))), eq(Sound.ENTITY_SPIDER_AMBIENT), eq(.4f), eq(.7f));
         verify(player).sendActionBar(Component.text("Spider created"));
-        verify(seal.item).setItemMeta(seal.meta);
     }
 
     @Test
