@@ -27,7 +27,16 @@ public final class IKDebugRenderer {
         IKChainPose3D pose,
         IKTarget3D target
     ) {
-        IKDebugStyle style = new IKDebugStyle();
+        return renderIKGuides(world, chain, pose, target, new IKDebugStyle());
+    }
+
+    static RenderGroup renderIKGuides(
+        World world,
+        IKChain3D chain,
+        IKChainPose3D pose,
+        IKTarget3D target,
+        IKDebugStyle style
+    ) {
         RenderGroup out = new RenderGroup();
         List<IKChainWorldNode3D> nodes = chain.getWorldNodes(pose);
 

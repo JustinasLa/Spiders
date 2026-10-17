@@ -17,7 +17,6 @@ public final class SolveDampedLeastSquares {
     ) {
         Metrics currentMetrics = problem.evaluateState(state);
         State bestState = problem.cloneState(state);
-        Metrics bestMetrics = currentMetrics;
         double damping = Maths.clamp(options.getDamping(), options.getMinDamping(), options.getMaxDamping());
 
         int iterations = options.getIterations();
@@ -48,10 +47,8 @@ public final class SolveDampedLeastSquares {
                     currentMetrics = trialMetrics;
                     accepted = true;
 
-                    if (trialMetrics.getScore() < bestMetrics.getScore() - EPSILON) {
-                        bestState = problem.cloneState(trialState);
-                        bestMetrics = trialMetrics;
-                    }
+                    // Only improving steps are accepted, so the current state is always the best so far.
+                    bestState = problem.cloneState(trialState);
 
                     damping = Math.max(options.getMinDamping(), damping / options.getDampingScale());
                     break;
@@ -108,7 +105,8 @@ public final class SolveDampedLeastSquares {
                 denominator = backwardDelta;
             }
 
-            if (sampledMetrics == null || Math.abs(denominator) <= EPSILON) continue;
+            // Both sides clamped (a fixed parameter): it has no effect, so its column stays zero.
+            if (sampledMetrics == null) continue;
 
             for (int row = 0; row < rows; row++) {
                 jacobian[row][column] = (sampledMetrics.getErrorVector()[row] - baseMetrics.getErrorVector()[row]) / denominator;
@@ -128,8 +126,6 @@ public final class SolveDampedLeastSquares {
         double damping
     ) {
         int columnCount = parameters.size();
-        if (columnCount == 0) return null;
-
         boolean[] active = new boolean[columnCount];
         Arrays.fill(active, true);
 
@@ -154,16 +150,8 @@ public final class SolveDampedLeastSquares {
                 }
             }
 
+            // Re-solve without the pinned parameters; solveRestrictedStep returns null once none are left.
             if (!pinned) return step;
-
-            boolean anyActive = false;
-            for (boolean isActive : active) {
-                if (isActive) {
-                    anyActive = true;
-                    break;
-                }
-            }
-            if (!anyActive) return null;
         }
     }
 

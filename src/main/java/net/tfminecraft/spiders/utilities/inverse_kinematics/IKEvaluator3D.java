@@ -102,7 +102,8 @@ public interface IKEvaluator3D {
         float angle = 2 * (float) Math.acos(Maths.clamp(delta.w, -1f, 1f));
         float sine = (float) Math.sqrt(Math.max(1f - delta.w * delta.w, 0f));
 
-        if (sine <= EPSILON || angle <= EPSILON) {
+        // A tiny angle always has a tiny sine (w rounds to 1), so the sine test covers both.
+        if (sine <= EPSILON) {
             return new Vector((double) delta.x, (double) delta.y, (double) delta.z).multiply(2.0);
         }
 
