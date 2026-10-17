@@ -24,8 +24,13 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
+import java.util.random.RandomGenerator;
 
 public class SpiderRenderer implements ECSComponent {
+    /** Where blinking draws its coin flips and colours; tests swap in a scripted one. */
+    static Supplier<RandomGenerator> randomness = ThreadLocalRandom::current;
+
     private boolean useParticles = false;
 
     public boolean getUseParticles() {
@@ -43,7 +48,7 @@ public class SpiderRenderer implements ECSComponent {
                 SpiderOptions options = row.second();
                 List<BlockDisplayModelPiece> pieces = piecesTagged(options, "eye");
 
-                if (ThreadLocalRandom.current().nextBoolean()) continue;
+                if (randomness.get().nextBoolean()) continue;
                 for (BlockDisplayModelPiece piece : pieces) {
                     PaletteEntry entry = random(options.getBodyPlan().getEyePalette());
                     piece.setBlock(entry.getBlock());
@@ -58,7 +63,7 @@ public class SpiderRenderer implements ECSComponent {
                 SpiderOptions options = row.second();
                 List<BlockDisplayModelPiece> pieces = piecesTagged(options, "blinking_lights");
 
-                if (ThreadLocalRandom.current().nextBoolean()) continue;
+                if (randomness.get().nextBoolean()) continue;
                 for (BlockDisplayModelPiece piece : pieces) {
                     PaletteEntry entry = random(options.getBodyPlan().getBlinkingPalette());
                     piece.setBlock(entry.getBlock());
@@ -100,7 +105,7 @@ public class SpiderRenderer implements ECSComponent {
 
     private static <T> T random(List<T> list) {
         if (list.isEmpty()) throw new java.util.NoSuchElementException("Collection is empty.");
-        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
+        return list.get(randomness.get().nextInt(list.size()));
     }
 
     private static final class SpiderParticleRenderer {
