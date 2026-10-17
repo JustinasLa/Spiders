@@ -73,7 +73,7 @@ public final class DampedLeastSquaresIKSolver3D {
         SolveDampedLeastSquares.solveDampedLeastSquares(pose, problem, options);
     }
 
-    private static List<JointParameterDescriptor> createParameterDescriptors(List<IKJointPose3D> jointStates) {
+    static List<JointParameterDescriptor> createParameterDescriptors(List<IKJointPose3D> jointStates) {
         List<JointParameterDescriptor> descriptors = new ArrayList<>();
 
         for (int index = 0; index < jointStates.size(); index++) {
@@ -104,7 +104,7 @@ public final class DampedLeastSquaresIKSolver3D {
         return appliedDelta;
     }
 
-    private static double clampDelta(
+    static double clampDelta(
         IKChain3D chain,
         IKChainPose3D pose,
         JointParameterDescriptor descriptor,
@@ -139,7 +139,7 @@ public final class DampedLeastSquaresIKSolver3D {
         throw new IllegalStateException("IKSolver requires matching topology.");
     }
 
-    private static void applyDelta(
+    static void applyDelta(
         IKChain3D chain,
         IKChainPose3D pose,
         JointParameterDescriptor descriptor,
