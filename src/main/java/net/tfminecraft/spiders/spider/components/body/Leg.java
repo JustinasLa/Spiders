@@ -608,10 +608,12 @@ public class Leg {
         boolean matches() {
             if (!valid || ticks - tick >= SCAN_REFRESH_TICKS) return false;
             Gait gait = options.getGait();
+            // the scan line and comfort zone are built from the look-ahead and the surface up, so those come first
+            // (vector equality is within 1e-6, so each of these can still differ while the earlier ones match)
             return grip == gait.getGrip() && alternativeGround == gait.getLegScanAlternativeGround() && heightBias == gait.getLegScanHeightBias() &&
                 spiderPosition.equals(spider.getPosition()) && spiderOrientation.equals(spider.getOrientation(), ORIENTATION_EPSILON) &&
-                scanStart.equals(scanLine.getPoint1()) && scanEnd.equals(scanLine.getPoint2()) &&
                 lookAhead.equals(lookAheadPosition) && up.equals(surfaceUp) &&
+                scanStart.equals(scanLine.getPoint1()) && scanEnd.equals(scanLine.getPoint2()) &&
                 comfortStart.equals(comfortZone.getPoint1()) && comfortEnd.equals(comfortZone.getPoint2()) && comfortRadius == comfortZone.getRadius();
         }
 
