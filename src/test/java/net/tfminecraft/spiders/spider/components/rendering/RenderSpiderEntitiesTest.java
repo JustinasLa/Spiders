@@ -81,9 +81,6 @@ class RenderSpiderEntitiesTest {
 
     @AfterEach
     void close() {
-        // two frames without this spider forget its tree
-        RenderSpiderEntities.endFrame();
-        RenderSpiderEntities.endFrame();
         server.close();
     }
 

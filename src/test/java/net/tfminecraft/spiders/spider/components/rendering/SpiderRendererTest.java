@@ -33,11 +33,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.random.RandomGenerator;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -55,6 +58,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,9 +74,12 @@ class SpiderRendererTest {
     private final SpiderRenderer renderer = new SpiderRenderer();
     private SpiderBody spider;
     private final List<Player> debugViewers = new ArrayList<>();
+    private final ScriptedRandom random = new ScriptedRandom();
+    private final Supplier<RandomGenerator> originalRandomness = SpiderRenderer.randomness;
 
     @BeforeEach
     void setup() {
+        SpiderRenderer.randomness = () -> random;
         server = new RenderTestSupport();
         world = server.world;
         Logger logger = Logger.getAnonymousLogger();
@@ -106,8 +113,7 @@ class SpiderRendererTest {
     @AfterEach
     void close() {
         for (Player viewer : debugViewers) AppState.toggleDebugView(viewer);
-        RenderSpiderEntities.endFrame();
-        RenderSpiderEntities.endFrame();
+        SpiderRenderer.randomness = originalRandomness;
         server.close();
     }
 
@@ -121,29 +127,56 @@ class SpiderRendererTest {
         return new BlockDisplayModelPiece(RenderTestSupport.blockData(Material.STONE), new org.joml.Matrix4f(), null, new ArrayList<>(List.of(tags)));
     }
 
+    /** Hands out exactly the coin flips and palette picks a test scripts, and fails on anything else. */
+    private static final class ScriptedRandom implements RandomGenerator {
+        final Deque<Boolean> flips = new ArrayDeque<>();
+        final Deque<Integer> picks = new ArrayDeque<>();
+
+        @Override
+        public boolean nextBoolean() {
+            return flips.removeFirst();
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            int pick = picks.removeFirst();
+            assertTrue(pick < bound, "pick within the palette");
+            return pick;
+        }
+
+        @Override
+        public long nextLong() {
+            throw new AssertionError("unscripted randomness");
+        }
+
+        void assertUsedUp() {
+            assertTrue(flips.isEmpty(), "every scripted flip was used");
+            assertTrue(picks.isEmpty(), "every scripted pick was used");
+        }
+    }
+
     private void assertBlinks(long period, String tag, List<PaletteEntry> palette) {
-        BlockDisplayModelPiece tagged = piece(tag);
-        BlockDisplayModelPiece plain = piece("other");
-        BlockData plainBlock = plain.getBlock();
+        BlockDisplayModelPiece tagged = spy(piece(tag));
+        BlockDisplayModelPiece plain = spy(piece("other"));
         bodyModel.getPieces().addAll(List.of(tagged, plain));
         Runnable blink = interval(period);
 
-        Set<BlockData> seen = new java.util.HashSet<>();
-        // each run blinks or not at random; 64 runs all skipping or all blinking is a 1 in 2^63 chance
-        int unchanged = 0;
-        for (int run = 0; run < 64; run++) {
-            BlockData before = tagged.getBlock();
+        random.flips.add(true); // this run skips
+        blink.run();
+        verify(tagged, never()).setBlock(any());
+        verify(tagged, never()).setBrightness(any());
+
+        for (int pick = 0; pick < palette.size(); pick++) {
+            random.flips.add(false);
+            random.picks.add(pick);
             blink.run();
-            if (tagged.getBlock() == before) unchanged++;
-            seen.add(tagged.getBlock());
+            assertSame(palette.get(pick).getBlock(), tagged.getBlock());
+            assertSame(palette.get(pick).getBrightness(), tagged.getBrightness());
         }
 
-        assertTrue(unchanged > 0, "some runs skip");
-        for (PaletteEntry entry : palette) assertTrue(seen.contains(entry.getBlock()), "every palette entry shows up");
-        int index = palette.stream().map(PaletteEntry::getBlock).toList().indexOf(tagged.getBlock());
-        assertSame(palette.get(index).getBrightness(), tagged.getBrightness());
-        assertSame(plainBlock, plain.getBlock());
-        assertEquals(null, plain.getBrightness());
+        verify(plain, never()).setBlock(any());
+        verify(plain, never()).setBrightness(any());
+        random.assertUsedUp();
     }
 
     private static List<PaletteEntry> palette() {
@@ -154,7 +187,7 @@ class SpiderRendererTest {
     }
 
     @Test
-    @DisplayName("every 10 ticks, at random, eye pieces take a random colour from the eye palette")
+    @DisplayName("every 10 ticks, on a coin flip, eye pieces take a random colour from the eye palette")
     void eyesBlink() {
         List<PaletteEntry> palette = palette();
         when(plan.getEyePalette()).thenReturn(palette);
@@ -162,7 +195,7 @@ class SpiderRendererTest {
     }
 
     @Test
-    @DisplayName("every 5 ticks, at random, blinking lights take a random colour from the light palette")
+    @DisplayName("every 5 ticks, on a coin flip, blinking lights take a random colour from the light palette")
     void lightsBlink() {
         List<PaletteEntry> palette = palette();
         when(plan.getBlinkingPalette()).thenReturn(palette);
@@ -170,16 +203,19 @@ class SpiderRendererTest {
     }
 
     @Test
-    @DisplayName("an empty palette fails the blink rather than picking nothing")
+    @DisplayName("an empty palette fails a blink rather than picking nothing, and is never read on a skipped one")
     void emptyPaletteFails() {
         when(plan.getEyePalette()).thenReturn(List.of());
         bodyModel.getPieces().add(piece("eye"));
         Runnable blink = interval(10);
 
-        assertThrows(NoSuchElementException.class, () -> {
-            for (int run = 0; run < 64; run++) blink.run();
-        });
+        random.flips.add(true);
+        blink.run();
+        random.flips.add(false);
+        assertThrows(NoSuchElementException.class, blink::run);
+        random.assertUsedUp();
     }
+
 
     @Test
     @DisplayName("each render draws the spider's displays, and a spider no longer rendered has its tree forgotten")

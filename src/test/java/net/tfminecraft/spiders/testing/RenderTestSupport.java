@@ -1,6 +1,7 @@
 package net.tfminecraft.spiders.testing;
 
 import io.papermc.paper.entity.TeleportFlag;
+import net.tfminecraft.spiders.spider.components.rendering.RenderSpiderEntities;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.Disposable;
 import net.tfminecraft.spiders.utilities.events.Scheduler;
@@ -31,8 +32,11 @@ import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +86,7 @@ public final class RenderTestSupport implements AutoCloseable {
             worldEntities.add(entity);
             return entity;
         });
+        previousPlugin = (JavaPlugin) staticField(Core.class, "currentPlugin");
         Core.setCurrentPlugin(plugin);
 
         bukkit = mockStatic(Bukkit.class);
@@ -98,7 +103,11 @@ public final class RenderTestSupport implements AutoCloseable {
         savedShutdownHooks = new ArrayList<>(shutdownHooks);
         savedTickHooks = new ArrayList<>(tickHooks);
         savedTickEndHooks = new ArrayList<>(tickEndHooks);
+        savedRendered = new LinkedHashMap<>(rendered());
+        savedUsed = new LinkedHashSet<>(used());
+        savedTrees = new HashMap<>(trees());
         resetTracker();
+        trees().clear();
     }
 
     private static final Class<?> TICK_SCHEDULE = nested(Scheduler.class, "TickSchedule");
@@ -110,6 +119,11 @@ public final class RenderTestSupport implements AutoCloseable {
     private final List<Object> savedShutdownHooks;
     private final List<Object> savedTickHooks;
     private final List<Object> savedTickEndHooks;
+    /** The other statics this sets, put back on close: the plugin, the tracked displays and the spiders' display trees. */
+    private final JavaPlugin previousPlugin;
+    private final Map<Object, Entity> savedRendered;
+    private final Set<Object> savedUsed;
+    private final Map<Object, Object> savedTrees;
 
     public MockedStatic<Bukkit> bukkit() {
         return bukkit;
@@ -121,7 +135,28 @@ public final class RenderTestSupport implements AutoCloseable {
         restore(tickHooks, savedTickHooks);
         restore(tickEndHooks, savedTickEndHooks);
         resetTracker();
+        rendered().putAll(savedRendered);
+        used().addAll(savedUsed);
+        trees().clear();
+        trees().putAll(savedTrees);
+        Core.setCurrentPlugin(previousPlugin);
         bukkit.close();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<Object, Entity> rendered() {
+        return (Map<Object, Entity>) staticField(RenderEntityTracker.class, "rendered");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Set<Object> used() {
+        return (Set<Object>) staticField(RenderEntityTracker.class, "used");
+    }
+
+    /** {@code RenderSpiderEntities.retained}: each rendered spider's display tree. */
+    @SuppressWarnings("unchecked")
+    private static Map<Object, Object> trees() {
+        return (Map<Object, Object>) staticField(RenderSpiderEntities.class, "retained");
     }
 
     private static void restore(List<Object> list, List<Object> saved) {
@@ -232,8 +267,8 @@ public final class RenderTestSupport implements AutoCloseable {
 
     /** Forgets every tracked display, as a fresh server would. */
     public static void resetTracker() {
-        ((Map<?, ?>) staticField(RenderEntityTracker.class, "rendered")).clear();
-        ((Set<?>) staticField(RenderEntityTracker.class, "used")).clear();
+        rendered().clear();
+        used().clear();
     }
 
     private static Class<?> nested(Class<?> outer, String simpleName) {
