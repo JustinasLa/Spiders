@@ -8,6 +8,7 @@ import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItemComponent;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItems;
+import net.tfminecraft.spiders.utilities.custom_items.StaffToolsReset;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.events.Events;
 import org.bukkit.Location;
@@ -63,6 +64,7 @@ class ToolBehaviourTest {
     private final PluginManager manager = mock(PluginManager.class);
     private final JavaPlugin plugin = mock(JavaPlugin.class);
     private final World world = mock(World.class);
+    private final Runnable restoreTools = StaffToolsReset.isolate();
 
     @BeforeEach
     void setup() {
@@ -77,6 +79,7 @@ class ToolBehaviourTest {
     @AfterEach
     void cleanState() {
         AppState.getEcs().getEntities().clear();
+        restoreTools.run();
     }
 
     private static ItemStack tool(Material material) {

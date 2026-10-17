@@ -9,6 +9,7 @@ import org.bukkit.Material;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -22,11 +23,11 @@ public final class BlockColorMaps {
     private BlockColorMaps() {
     }
 
-    private static final Map<Material, Color> blocks = loadBlocks();
+    private static final Map<Material, Color> blocks = loadBlocks(Core.requireResource("block_colors.json"));
 
-    private static final List<BlockColorInfo> colorToBlock = buildColorToBlock();
+    private static final List<BlockColorInfo> colorToBlock = buildColorToBlock(blocks);
 
-    private static final Map<Material, Color> blockToColor = buildBlockToColor();
+    private static final Map<Material, Color> blockToColor = buildBlockToColor(blocks);
 
     public static List<BlockColorInfo> getColorToBlock() {
         return colorToBlock;
@@ -36,10 +37,11 @@ public final class BlockColorMaps {
         return blockToColor;
     }
 
+    /** Block colours from the {@code block_colors.json} format, with the corrections and wood variants added. */
     @SuppressWarnings("unchecked")
-    private static Map<Material, Color> loadBlocks() {
+    static Map<Material, Color> loadBlocks(InputStream json) {
         String text;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(Core.requireResource("block_colors.json"), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(json, StandardCharsets.UTF_8))) {
             StringBuilder builder = new StringBuilder();
             char[] buffer = new char[8192];
             int read;
@@ -51,9 +53,9 @@ public final class BlockColorMaps {
 
         Map<Material, Color> colorMap = new LinkedHashMap<>();
 
-        Map<String, List<?>> json = (Map<String, List<?>>) new Gson().fromJson(text, Map.class);
+        Map<String, List<?>> entries = (Map<String, List<?>>) new Gson().fromJson(text, Map.class);
 
-        for (Map.Entry<String, List<?>> entry : json.entrySet()) {
+        for (Map.Entry<String, List<?>> entry : entries.entrySet()) {
             Material material = Material.matchMaterial("minecraft:" + entry.getKey());
             if (material == null) continue;
             List<?> value = entry.getValue();
@@ -83,7 +85,7 @@ public final class BlockColorMaps {
         return new LinkedHashMap<>(colorMap);
     }
 
-    private static List<BlockColorInfo> buildColorToBlock() {
+    static List<BlockColorInfo> buildColorToBlock(Map<Material, Color> blocks) {
         Map<Color, BlockColorInfo> out = new LinkedHashMap<>();
 
         for (int brightness = 15; brightness >= 0; brightness--) {
@@ -121,7 +123,7 @@ public final class BlockColorMaps {
         return new ArrayList<>(out.values());
     }
 
-    private static Map<Material, Color> buildBlockToColor() {
+    static Map<Material, Color> buildBlockToColor(Map<Material, Color> blocks) {
         Map<Material, Color> out = new LinkedHashMap<>(blocks);
 
         // infer color of partial blocks from their full block counterparts

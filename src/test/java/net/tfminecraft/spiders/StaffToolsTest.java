@@ -3,6 +3,7 @@ package net.tfminecraft.spiders;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItemComponent;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItems;
+import net.tfminecraft.spiders.utilities.custom_items.StaffToolsReset;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -19,6 +20,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,7 @@ class StaffToolsTest {
     private final Server server = mock(Server.class);
     private final PluginManager manager = mock(PluginManager.class);
     private final JavaPlugin plugin = mock(JavaPlugin.class);
+    private final Runnable restoreTools = StaffToolsReset.isolate();
 
     @BeforeEach
     void setup() {
@@ -46,6 +49,11 @@ class StaffToolsTest {
         when(plugin.getServer()).thenReturn(server);
         when(server.getPluginManager()).thenReturn(manager);
         Core.setCurrentPlugin(plugin);
+    }
+
+    @AfterEach
+    void forgetTools() {
+        restoreTools.run();
     }
 
     private ItemStack tool(Material material, boolean tagged) {

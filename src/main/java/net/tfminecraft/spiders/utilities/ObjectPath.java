@@ -181,7 +181,7 @@ public class ObjectPath {
     private Type elementType(Type context) {
         if (context instanceof ParameterizedType parameterized) {
             Type[] arguments = parameterized.getActualTypeArguments();
-            if (arguments.length > 0 && arguments[0] != null) return arguments[0];
+            if (arguments.length > 0) return arguments[0];
         }
         return Object.class;
     }
@@ -189,7 +189,7 @@ public class ObjectPath {
     private Type mapValueType(Type context) {
         if (context instanceof ParameterizedType parameterized) {
             Type[] arguments = parameterized.getActualTypeArguments();
-            if (arguments.length > 1 && arguments[1] != null) return arguments[1];
+            if (arguments.length > 1) return arguments[1];
         }
         return Object.class;
     }
@@ -198,17 +198,12 @@ public class ObjectPath {
         if (!(declared instanceof TypeVariable<?> variable)) return declared;
 
         if (!(context instanceof ParameterizedType parameterized)) return declared;
-        if (!(parameterized.getRawType() instanceof Class<?> owner)) return declared;
-        int index = -1;
-        TypeVariable<?>[] parameters = owner.getTypeParameters();
-        for (int i = 0; i < parameters.length; i++) {
-            if (Objects.equals(parameters[i].getGenericDeclaration(), variable.getGenericDeclaration())) {
-                index = i;
-                break;
-            }
-        }
+        // a reflected ParameterizedType's raw type is its class, with one argument per type parameter
+        TypeVariable<?>[] parameters = ((Class<?>) parameterized.getRawType()).getTypeParameters();
         Type[] arguments = parameterized.getActualTypeArguments();
-        if (index >= 0 && index < arguments.length && arguments[index] != null) return arguments[index];
+        for (int i = 0; i < parameters.length; i++) {
+            if (Objects.equals(parameters[i].getGenericDeclaration(), variable.getGenericDeclaration())) return arguments[i];
+        }
         return declared;
     }
 
@@ -243,7 +238,7 @@ public class ObjectPath {
 
     private Field fieldOf(Class<?> type, String name) {
         Class<?> current = type;
-        while (current != null && current != Object.class) {
+        while (current != Object.class) {
             Field field = fields.computeIfAbsent(current, ObjectPath::declaredFieldsByName).get(name);
             if (field != null) return field;
             current = current.getSuperclass();
@@ -275,7 +270,6 @@ public class ObjectPath {
 
 
     private static Integer toIntOrNull(String value) {
-        if (value.isEmpty()) return null;
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException ignored) {

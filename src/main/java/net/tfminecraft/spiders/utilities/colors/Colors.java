@@ -45,8 +45,7 @@ public final class Colors {
         if (delta == 0f) h = 0f;
         else if (max == r) h = 60 * (((g - b) / delta) % 6);
         else if (max == g) h = 60 * ((b - r) / delta + 2);
-        else if (max == b) h = 60 * ((r - g) / delta + 4);
-        else throw new IllegalStateException("Unreachable");
+        else h = 60 * ((r - g) / delta + 4); // max == b
 
         float s = max == 0f ? 0f : delta / max;
         float v = max;

@@ -109,18 +109,15 @@ public final class Serializer {
         private static final String HINGE = "hinge";
         private static final String SWING_TWIST = "swingTwist";
 
+        /** IKJoint3D is sealed: a joint is a hinge or a swing-twist joint. */
         private static String jointTagOf(IKJoint3D joint) {
-            if (joint instanceof IKHingeJoint3D) return HINGE;
-            if (joint instanceof IKSwingTwistJoint3D) return SWING_TWIST;
-            throw new IllegalStateException("Unknown IKJoint3D implementation " + joint.getClass().getName());
+            return joint instanceof IKHingeJoint3D ? HINGE : SWING_TWIST;
         }
 
         @Override
         public JsonElement serialize(IKJoint3D src, Type type, JsonSerializationContext ctx) {
-            JsonElement body = ctx.serialize(src, src.getClass());
-            if (!(body instanceof JsonObject bodyObject)) {
-                throw new IllegalArgumentException("An IKJoint3D must serialise to a JSON object, got " + body);
-            }
+            // both joint classes are plain objects
+            JsonObject bodyObject = ctx.serialize(src, src.getClass()).getAsJsonObject();
 
             JsonObject out = new JsonObject();
             out.addProperty(KEY, jointTagOf(src));

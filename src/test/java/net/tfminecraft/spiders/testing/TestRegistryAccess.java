@@ -12,6 +12,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -99,6 +100,14 @@ public final class TestRegistryAccess implements RegistryAccess {
         return type;
     }
 
+    /**
+     * The nested subtypes Bukkit may cast a value to besides {@link #mockedType}, e.g. {@code DataComponentType.Valued}
+     * and {@code NonValued}: {@code DataComponentTypes} checks each constant is the one it expects, so a mock is both.
+     */
+    private static Class<?>[] variants(Class<?> type) {
+        return Arrays.stream(type.getDeclaredClasses()).filter(it -> it.isInterface() && type.isAssignableFrom(it)).toArray(Class<?>[]::new);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Object entry(Class<?> type, NamespacedKey key) {
         if (type.isEnum()) {
@@ -109,7 +118,9 @@ public final class TestRegistryAccess implements RegistryAccess {
                 return null;
             }
         }
-        Keyed entry = (Keyed) mock(mockedType(type));
+        Class<?> mocked = mockedType(type);
+        Class<?>[] variants = variants(mocked);
+        Keyed entry = (Keyed) (variants.length == 0 ? mock(mocked) : mock(mocked, withSettings().extraInterfaces(variants)));
         when(entry.getKey()).thenReturn(key);
         when(entry.key()).thenReturn(key);
         // block colour tables only offer occluding blocks
