@@ -2,6 +2,8 @@ package net.tfminecraft.spiders.testing;
 
 import io.papermc.paper.entity.TeleportFlag;
 import net.tfminecraft.spiders.utilities.Core;
+import net.tfminecraft.spiders.utilities.Disposable;
+import net.tfminecraft.spiders.utilities.events.Scheduler;
 import net.tfminecraft.spiders.utilities.rendering.RenderEntityTracker;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -29,7 +31,6 @@ import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -89,8 +90,26 @@ public final class RenderTestSupport implements AutoCloseable {
         bukkit.when(() -> Bukkit.createBlockData(any(Material.class))).thenAnswer(call -> blockData(call.getArgument(0)));
         bukkit.when(() -> Bukkit.createBlockData(anyString())).thenAnswer(call -> blockData(Material.STONE));
 
+        // load the tracker (and the tick schedule it registers with) against this server, whichever test comes first
+        initialise(RenderEntityTracker.class);
+        shutdownHooks = (List<Object>) staticField(Core.class, "closeableList");
+        tickHooks = (List<Object>) staticField(TICK_SCHEDULE, "main");
+        tickEndHooks = (List<Object>) staticField(TICK_SCHEDULE, "end");
+        savedShutdownHooks = new ArrayList<>(shutdownHooks);
+        savedTickHooks = new ArrayList<>(tickHooks);
+        savedTickEndHooks = new ArrayList<>(tickEndHooks);
         resetTracker();
     }
+
+    private static final Class<?> TICK_SCHEDULE = nested(Scheduler.class, "TickSchedule");
+
+    /** The shared hook lists and their contents before this test, put back on close so nothing registered here leaks. */
+    private final List<Object> shutdownHooks;
+    private final List<Object> tickHooks;
+    private final List<Object> tickEndHooks;
+    private final List<Object> savedShutdownHooks;
+    private final List<Object> savedTickHooks;
+    private final List<Object> savedTickEndHooks;
 
     public MockedStatic<Bukkit> bukkit() {
         return bukkit;
@@ -98,8 +117,41 @@ public final class RenderTestSupport implements AutoCloseable {
 
     @Override
     public void close() {
+        restore(shutdownHooks, savedShutdownHooks);
+        restore(tickHooks, savedTickHooks);
+        restore(tickEndHooks, savedTickEndHooks);
         resetTracker();
         bukkit.close();
+    }
+
+    private static void restore(List<Object> list, List<Object> saved) {
+        list.clear();
+        list.addAll(saved);
+    }
+
+    private static void initialise(Class<?> type) {
+        try {
+            Class.forName(type.getName(), true, type.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** The tick-end and shutdown hooks one call to {@code install} registered. */
+    public record Hooks(Runnable tickEnd, Disposable shutdown) {
+    }
+
+    /**
+     * Runs {@code install} and returns the one tick-end hook and the one shutdown hook it added, so a test
+     * needn't rely on hooks registered when the class loaded still being there (a shutdown clears them).
+     */
+    public Hooks capture(Runnable install) {
+        int tickEndBefore = tickEndHooks.size();
+        int shutdownBefore = shutdownHooks.size();
+        install.run();
+        assertEquals(tickEndBefore + 1, tickEndHooks.size(), "one tick-end hook");
+        assertEquals(shutdownBefore + 1, shutdownHooks.size(), "one shutdown hook");
+        return new Hooks((Runnable) tickEndHooks.getLast(), (Disposable) shutdownHooks.getLast());
     }
 
     /** Block data that knows its material. */
@@ -182,40 +234,6 @@ public final class RenderTestSupport implements AutoCloseable {
     public static void resetTracker() {
         ((Map<?, ?>) staticField(RenderEntityTracker.class, "rendered")).clear();
         ((Set<?>) staticField(RenderEntityTracker.class, "used")).clear();
-    }
-
-    /** Runs the end-of-tick hook {@link RenderEntityTracker} registered with the scheduler. */
-    public static void runTrackerTickEnd() {
-        Class<?> schedule = nested(net.tfminecraft.spiders.utilities.events.Scheduler.class, "TickSchedule");
-        Collection<?> end = (Collection<?>) staticField(schedule, "end");
-        Runnable hook = (Runnable) registeredBy(end, RenderEntityTracker.class);
-        assertNotNull(hook, "RenderEntityTracker registered no tick-end hook");
-        hook.run();
-    }
-
-    /** Runs the plugin-shutdown hook {@link RenderEntityTracker} registered with {@link Core}. */
-    public static void runTrackerShutdownHook() throws Exception {
-        Collection<?> hooks = (Collection<?>) staticField(Core.class, "closeableList");
-        Object hook = registeredBy(hooks, RenderEntityTracker.class);
-        assertNotNull(hook, "RenderEntityTracker registered no shutdown hook");
-        ((AutoCloseable) hook).close();
-    }
-
-    /** The element whose captured lambda was written in {@code owner}. */
-    private static Object registeredBy(Collection<?> handlers, Class<?> owner) {
-        String prefix = owner.getName() + "$$Lambda";
-        for (Object handler : new ArrayList<>(handlers)) {
-            for (Field field : handler.getClass().getDeclaredFields()) {
-                try {
-                    field.setAccessible(true);
-                    Object captured = field.get(handler);
-                    if (captured != null && captured.getClass().getName().startsWith(prefix)) return handler;
-                } catch (ReflectiveOperationException | RuntimeException ignored) {
-                    // not a capture we can read
-                }
-            }
-        }
-        return null;
     }
 
     private static Class<?> nested(Class<?> outer, String simpleName) {

@@ -24,6 +24,7 @@ class RenderEntityTrackerTest {
     private static final String TAG = "tfmc_spider_render";
 
     private final RenderTestSupport server = new RenderTestSupport();
+    private final RenderTestSupport.Hooks hooks = server.capture(RenderEntityTracker::install);
 
     @AfterEach
     void close() {
@@ -67,17 +68,17 @@ class RenderEntityTrackerTest {
         BlockDisplay dropped = display();
         RenderEntityTracker.put("kept", kept);
         RenderEntityTracker.put("dropped", dropped);
-        RenderTestSupport.runTrackerTickEnd();
+        hooks.tickEnd().run();
         assertEquals(2, RenderEntityTracker.getAll().size(), "both were used the tick they were put");
 
         RenderEntityTracker.get("kept", BlockDisplay.class);
-        RenderTestSupport.runTrackerTickEnd();
+        hooks.tickEnd().run();
 
         verify(dropped).remove();
         verify(kept, never()).remove();
         assertEquals(List.of(new Pair<Object, Entity>("kept", kept)), RenderEntityTracker.getAll());
 
-        RenderTestSupport.runTrackerTickEnd();
+        hooks.tickEnd().run();
         verify(kept).remove();
         assertTrue(RenderEntityTracker.getAll().isEmpty());
     }
@@ -90,7 +91,7 @@ class RenderEntityTrackerTest {
 
         RenderEntityTracker.detach("a");
         RenderEntityTracker.detach("never tracked");
-        RenderTestSupport.runTrackerTickEnd();
+        hooks.tickEnd().run();
 
         assertFalse(display.getScoreboardTags().contains(TAG));
         assertTrue(RenderEntityTracker.getAll().isEmpty());
@@ -111,14 +112,14 @@ class RenderEntityTrackerTest {
 
     @Test
     @DisplayName("on plugin shutdown every still-tagged display is removed and the tracker forgets them all")
-    void shutdownRemovesAll() throws Exception {
+    void shutdownRemovesAll() {
         BlockDisplay tagged = display();
         BlockDisplay untagged = display();
         RenderEntityTracker.put("tagged", tagged);
         RenderEntityTracker.put("untagged", untagged);
         untagged.removeScoreboardTag(TAG);
 
-        RenderTestSupport.runTrackerShutdownHook();
+        hooks.shutdown().close();
 
         verify(tagged).remove();
         verify(untagged, never()).remove();

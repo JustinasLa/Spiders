@@ -25,6 +25,11 @@ public final class RenderEntityTracker {
     private static final CustomEntityComponent component = CustomEntityComponent.fromString("tfmc_spider_render");
 
     static {
+        install();
+    }
+
+    /** Removes unused displays at each tick's end and all of them on shutdown; run once, as the class loads. */
+    static void install() {
         Scheduler.onTickEnd(it -> {
             removeUnused();
         });

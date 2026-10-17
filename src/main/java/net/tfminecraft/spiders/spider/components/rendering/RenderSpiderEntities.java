@@ -231,6 +231,12 @@ public final class RenderSpiderEntities {
      * so only which pieces there are and which of them are items is compared.
      */
     static final class Shape {
+        /**
+         * Closes every walk. No walked value is ever this, so a walk that still matches has not passed the
+         * recorded end, and it matches in full only if it ends exactly where the recording did.
+         */
+        private static final Object END = new Object();
+
         private final List<Object> recorded = new ArrayList<>();
         private boolean recording;
         private int cursor;
@@ -250,7 +256,7 @@ public final class RenderSpiderEntities {
             cursor = 0;
             same = true;
             walk(spider, options);
-            return same && cursor == recorded.size();
+            return same;
         }
 
         private void walk(SpiderBody spider, SpiderOptions options) {
@@ -275,6 +281,7 @@ public final class RenderSpiderEntities {
                     pieces(segmentPlan.getModel().getPieces());
                 }
             }
+            identity(END);
         }
 
         /** The list, each piece in it and whether (and as what) it is drawn as an item, which picks the display type. */
@@ -290,12 +297,12 @@ public final class RenderSpiderEntities {
 
         private void identity(Object value) {
             if (recording) recorded.add(value);
-            else same = same && cursor < recorded.size() && recorded.get(cursor++) == value;
+            else same = same && recorded.get(cursor++) == value;
         }
 
         private void equal(Object value) {
             if (recording) recorded.add(value);
-            else same = same && cursor < recorded.size() && Objects.equals(recorded.get(cursor++), value);
+            else same = same && Objects.equals(recorded.get(cursor++), value);
         }
 
         private void count(int value) {
