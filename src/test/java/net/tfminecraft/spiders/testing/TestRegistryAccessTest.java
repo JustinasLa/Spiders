@@ -1,6 +1,10 @@
 package net.tfminecraft.spiders.testing;
 
+import io.papermc.paper.datacomponent.DataComponentType;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import org.bukkit.Keyed;
+import org.bukkit.Material;
+import org.bukkit.block.BlockType;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
@@ -11,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -60,5 +65,13 @@ class TestRegistryAccessTest {
         });
         assertSame(inner, outer);
         assertSame(inner, TestRegistryAccess.lookUp(map, "key", Object::new));
+    }
+
+    @Test
+    @DisplayName("block types and data component types initialise as their typed and valued subtypes")
+    void typedRegistryEntriesInitialise() {
+        assertInstanceOf(BlockType.Typed.class, Material.STONE.asBlockType());
+        assertInstanceOf(DataComponentType.Valued.class, DataComponentTypes.ITEM_NAME);
+        assertEquals("item_name", DataComponentTypes.ITEM_NAME.getKey().getKey());
     }
 }

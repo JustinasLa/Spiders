@@ -40,7 +40,11 @@ public final class Scheduler {
 
 
 
-    private static final class TickSchedule {
+    /** Package-private so tests can run a tick and clear the handlers between tests. */
+    static final class TickSchedule {
+        private TickSchedule() {
+        }
+
         static final List<Runnable> main = new ArrayList<>();
         static final List<Runnable> end = new ArrayList<>();
 
@@ -57,10 +61,12 @@ public final class Scheduler {
 
 
         static {
-            interval(0, 1, it -> {
-                runAll(main);
-                runAll(end);
-            });
+            interval(0, 1, TickSchedule::tick);
+        }
+
+        static void tick(Disposable timer) {
+            runAll(main);
+            runAll(end);
         }
 
         /** A throwing handler is logged and skipped; the rest of the tick (e.g. display cleanup) still runs. */

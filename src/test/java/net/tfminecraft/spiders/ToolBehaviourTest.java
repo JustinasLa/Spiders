@@ -8,6 +8,7 @@ import net.tfminecraft.spiders.spider.components.body.SpiderBody;
 import net.tfminecraft.spiders.utilities.Core;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItemComponent;
 import net.tfminecraft.spiders.utilities.custom_items.CustomItems;
+import net.tfminecraft.spiders.utilities.custom_items.StaffToolsReset;
 import net.tfminecraft.spiders.utilities.ecs.ECSEntity;
 import net.tfminecraft.spiders.utilities.events.Events;
 import org.bukkit.Location;
@@ -77,6 +78,7 @@ class ToolBehaviourTest {
     @AfterEach
     void cleanState() {
         AppState.getEcs().getEntities().clear();
+        StaffToolsReset.reset();
     }
 
     private static ItemStack tool(Material material) {
