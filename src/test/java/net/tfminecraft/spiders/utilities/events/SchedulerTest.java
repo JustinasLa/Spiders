@@ -9,7 +9,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -28,18 +27,14 @@ class SchedulerTest {
     private UtilitiesTestSupport support;
 
     @BeforeEach
-    void setup() throws ReflectiveOperationException {
+    void setup() {
+        // starts with no tick handlers and a throttle that lets the next failure log
         support = UtilitiesTestSupport.install();
-        SchedulerTestSupport.clearTickHandlers();
-        // let the next failing handler log, whatever earlier tests did
-        Field lastErrorLog = Scheduler.TickSchedule.class.getDeclaredField("lastErrorLog");
-        lastErrorLog.setAccessible(true);
-        lastErrorLog.set(null, Long.MIN_VALUE / 2);
     }
 
     @AfterEach
-    void clear() {
-        SchedulerTestSupport.clearTickHandlers();
+    void close() {
+        support.close();
     }
 
     @Test

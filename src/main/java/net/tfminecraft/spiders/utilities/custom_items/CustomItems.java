@@ -100,11 +100,6 @@ public final class CustomItems {
         toolComponents.add(component);
     }
 
-    /** Forgets every tool. For tests, which make their own tools and must not leak them into the next test. */
-    static void clearToolComponents() {
-        toolComponents.clear();
-    }
-
     private static boolean containsTool(ItemStack[] items) {
         for (ItemStack item : items) if (isStaffTool(item)) return true;
         return false;

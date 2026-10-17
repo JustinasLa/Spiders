@@ -19,6 +19,7 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,11 @@ class EventsTest {
     @BeforeEach
     void setup() {
         support = UtilitiesTestSupport.install();
+    }
+
+    @AfterEach
+    void close() {
+        support.close();
     }
 
     private static Block block(BlockData data, Material type, BlockState state) {

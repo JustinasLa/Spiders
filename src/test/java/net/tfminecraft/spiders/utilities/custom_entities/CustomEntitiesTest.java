@@ -34,6 +34,7 @@ class CustomEntitiesTest {
     private final Entity plain = entity("other");
     private final Entity taggedElsewhere = entity(TAG);
     private MockedStatic<Bukkit> bukkit;
+    private UtilitiesTestSupport support;
 
     private static Entity entity(String... tags) {
         Entity entity = mock(Entity.class);
@@ -48,6 +49,7 @@ class CustomEntitiesTest {
         when(overworld.getEntities()).thenReturn(List.of(tagged, plain));
         when(nether.getEntities()).thenReturn(List.of(taggedElsewhere));
         when(server.getWorlds()).thenReturn(List.of(overworld, nether));
+        support = UtilitiesTestSupport.install();
         bukkit = mockStatic(Bukkit.class);
         bukkit.when(Bukkit::getServer).thenReturn(server);
     }
@@ -55,6 +57,7 @@ class CustomEntitiesTest {
     @AfterEach
     void close() {
         bukkit.close();
+        support.close();
     }
 
     @Test
@@ -84,22 +87,15 @@ class CustomEntitiesTest {
     @Test
     @DisplayName("tick handlers run for each tagged entity")
     void tickHandlersRunForTaggedEntities() {
-        UtilitiesTestSupport.install();
-        SchedulerTestSupport.clearTickHandlers();
-        try {
-            List<Entity> ticked = new ArrayList<>();
-            CustomEntityComponent.fromString(TAG).onTick(ticked::add);
-            SchedulerTestSupport.tick();
-            assertEquals(List.of(tagged, taggedElsewhere), ticked);
-        } finally {
-            SchedulerTestSupport.clearTickHandlers();
-        }
+        List<Entity> ticked = new ArrayList<>();
+        CustomEntityComponent.fromString(TAG).onTick(ticked::add);
+        SchedulerTestSupport.tick();
+        assertEquals(List.of(tagged, taggedElsewhere), ticked);
     }
 
     @Test
     @DisplayName("interaction handlers only hear about tagged entities")
     void interactHandlersOnlyHearTaggedEntities() {
-        UtilitiesTestSupport support = UtilitiesTestSupport.install();
         List<PlayerInteractEntityEvent> heard = new ArrayList<>();
         CustomEntityComponent.fromString(TAG).onInteract(heard::add);
 

@@ -57,7 +57,6 @@ class StaffToolMenuTest {
     @BeforeEach
     void setup() {
         support = UtilitiesTestSupport.install();
-        StaffToolsReset.reset();
         items = mockConstruction(ItemStack.class);
         bukkit = mockStatic(Bukkit.class);
         bukkit.when(() -> Bukkit.createInventory(holder.capture(), anyInt(), any(Component.class))).thenReturn(menu);
@@ -67,7 +66,7 @@ class StaffToolMenuTest {
     void close() {
         items.close();
         bukkit.close();
-        StaffToolsReset.reset();
+        support.close();
     }
 
     private static StaffTool tool(String id, String name) {

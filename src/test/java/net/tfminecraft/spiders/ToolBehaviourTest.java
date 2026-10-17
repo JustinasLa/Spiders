@@ -64,6 +64,7 @@ class ToolBehaviourTest {
     private final PluginManager manager = mock(PluginManager.class);
     private final JavaPlugin plugin = mock(JavaPlugin.class);
     private final World world = mock(World.class);
+    private final Runnable restoreTools = StaffToolsReset.isolate();
 
     @BeforeEach
     void setup() {
@@ -78,7 +79,7 @@ class ToolBehaviourTest {
     @AfterEach
     void cleanState() {
         AppState.getEcs().getEntities().clear();
-        StaffToolsReset.reset();
+        restoreTools.run();
     }
 
     private static ItemStack tool(Material material) {

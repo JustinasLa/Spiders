@@ -40,6 +40,7 @@ class StaffToolsTest {
     private final Server server = mock(Server.class);
     private final PluginManager manager = mock(PluginManager.class);
     private final JavaPlugin plugin = mock(JavaPlugin.class);
+    private final Runnable restoreTools = StaffToolsReset.isolate();
 
     @BeforeEach
     void setup() {
@@ -52,7 +53,7 @@ class StaffToolsTest {
 
     @AfterEach
     void forgetTools() {
-        StaffToolsReset.reset();
+        restoreTools.run();
     }
 
     private ItemStack tool(Material material, boolean tagged) {

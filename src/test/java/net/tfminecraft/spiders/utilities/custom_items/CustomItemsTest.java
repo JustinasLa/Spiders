@@ -71,12 +71,11 @@ class CustomItemsTest {
     @BeforeEach
     void setup() {
         support = UtilitiesTestSupport.install();
-        StaffToolsReset.reset();
     }
 
     @AfterEach
     void reset() {
-        StaffToolsReset.reset();
+        support.close();
     }
 
     static ItemStack item(Material material, boolean tagged) {
@@ -138,7 +137,7 @@ class CustomItemsTest {
         assertFalse(CustomItems.isStaffTool(item(Material.STICK, true)));
         assertFalse(CustomItems.isStaffTool(null));
 
-        StaffToolsReset.reset();
+        StaffToolsReset.clear();
         assertFalse(CustomItems.isStaffTool(item(Material.GREEN_DYE, true)), "forgotten after a reset");
     }
 

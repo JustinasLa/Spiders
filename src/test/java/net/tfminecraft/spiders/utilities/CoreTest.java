@@ -36,39 +36,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CoreTest {
-    private Object savedPlugin;
-    private Object savedTick;
+    private UtilitiesTestSupport support;
     private Object savedMinecart;
-    private List<Disposable> savedHooks;
 
-    private static Field field(String name) throws ReflectiveOperationException {
-        Field field = Core.class.getDeclaredField(name);
+    private static Field minecart() throws ReflectiveOperationException {
+        Field field = Core.class.getDeclaredField("commandBlockMinecart");
         field.setAccessible(true);
         return field;
     }
 
-    @SuppressWarnings("unchecked")
-    private static List<Disposable> hooks() throws ReflectiveOperationException {
-        return (List<Disposable>) field("closeableList").get(null);
-    }
-
     @BeforeEach
-    void save() throws ReflectiveOperationException {
-        savedPlugin = field("currentPlugin").get(null);
-        savedTick = field("currentTick").get(null);
-        savedMinecart = field("commandBlockMinecart").get(null);
-        savedHooks = new ArrayList<>(hooks());
-        hooks().clear();
-        field("commandBlockMinecart").set(null, null);
+    void setup() throws ReflectiveOperationException {
+        support = UtilitiesTestSupport.install();
+        UtilitiesTestSupport.hooks().clear();
+        savedMinecart = minecart().get(null);
+        minecart().set(null, null);
     }
 
     @AfterEach
     void restore() throws ReflectiveOperationException {
-        field("currentPlugin").set(null, savedPlugin);
-        field("currentTick").set(null, savedTick);
-        field("commandBlockMinecart").set(null, savedMinecart);
-        hooks().clear();
-        hooks().addAll(savedHooks);
+        minecart().set(null, savedMinecart);
+        support.close();
     }
 
     @Test
@@ -76,34 +64,27 @@ class CoreTest {
     void currentPluginMustBeSet() {
         Core.setCurrentPlugin(null);
         assertThrows(IllegalStateException.class, Core::getCurrentPlugin);
-        UtilitiesTestSupport support = UtilitiesTestSupport.install();
+        Core.setCurrentPlugin(support.plugin);
         assertSame(support.plugin, Core.getCurrentPlugin());
         assertEquals(new NamespacedKey("tfmcspiders", "spider_uuid"), Core.namespacedID("spider_uuid"));
     }
 
     @Test
     @DisplayName("setup sets the plugin and counts ticks")
-    void setupCountsTicks() throws ReflectiveOperationException {
-        UtilitiesTestSupport support = UtilitiesTestSupport.install();
-        SchedulerTestSupport.clearTickHandlers();
+    void setupCountsTicks() {
         Core.setCurrentPlugin(null);
-        field("currentTick").set(null, 0);
+        int before = Core.getCurrentTick();
 
-        try {
-            Core.setupCoreUtils(support.plugin);
-            assertSame(support.plugin, Core.getCurrentPlugin());
-            SchedulerTestSupport.tick();
-            SchedulerTestSupport.tick();
-            assertEquals(2, Core.getCurrentTick());
-        } finally {
-            SchedulerTestSupport.clearTickHandlers();
-        }
+        Core.setupCoreUtils(support.plugin);
+        assertSame(support.plugin, Core.getCurrentPlugin());
+        SchedulerTestSupport.tick();
+        SchedulerTestSupport.tick();
+        assertEquals(before + 2, Core.getCurrentTick());
     }
 
     @Test
     @DisplayName("every shutdown hook runs once, even after one throws")
     void shutdownRunsEveryHookOnce() {
-        UtilitiesTestSupport support = UtilitiesTestSupport.install();
         List<String> ran = new ArrayList<>();
         RuntimeException failure = new IllegalStateException("broken");
         assertTrue(Core.onPluginShutdown(() -> ran.add("first")));

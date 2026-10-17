@@ -38,7 +38,8 @@ class BlockColorsTest {
 
     private final List<BlockColorInfo> savedColorToBlock = new ArrayList<>();
     private final Map<Material, Color> savedBlockToColor = new LinkedHashMap<>();
-    private final List<Material> occluding = new ArrayList<>();
+    /** The occlusion each stubbed block type had before, to put back. */
+    private final Map<Material, Boolean> occluding = new LinkedHashMap<>();
 
     @BeforeEach
     void save() {
@@ -53,13 +54,13 @@ class BlockColorsTest {
         BlockColorMaps.getBlockToColor().clear();
         BlockColorMaps.getBlockToColor().putAll(savedBlockToColor);
         // the registry's block types are shared by every test
-        for (Material material : occluding) when(material.asBlockType().isOccluding()).thenReturn(false);
+        occluding.forEach((material, before) -> when(material.asBlockType().isOccluding()).thenReturn(before));
     }
 
     private void occlude(Material... materials) {
         for (Material material : materials) {
+            occluding.putIfAbsent(material, material.asBlockType().isOccluding());
             when(material.asBlockType().isOccluding()).thenReturn(true);
-            occluding.add(material);
         }
     }
 
