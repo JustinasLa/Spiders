@@ -58,9 +58,18 @@ class BlockColorsTest {
     }
 
     private void occlude(Material... materials) {
+        setOccluding(true, materials);
+    }
+
+    /** The test registry's block types occlude by default, so a see-through block must say so. */
+    private void seeThrough(Material... materials) {
+        setOccluding(false, materials);
+    }
+
+    private void setOccluding(boolean value, Material... materials) {
         for (Material material : materials) {
             occluding.putIfAbsent(material, material.asBlockType().isOccluding());
-            when(material.asBlockType().isOccluding()).thenReturn(true);
+            when(material.asBlockType().isOccluding()).thenReturn(value);
         }
     }
 
@@ -128,6 +137,7 @@ class BlockColorsTest {
     @DisplayName("display candidates are occluding full blocks at each brightness, without logs that have wood, spawners or shulker boxes")
     void displayCandidates() {
         occlude(Material.STONE, Material.DIRT, Material.OAK_LOG, Material.OAK_WOOD, Material.BIRCH_LOG, Material.SPAWNER, Material.TRIAL_SPAWNER, Material.SHULKER_BOX);
+        seeThrough(Material.GLASS);
         Map<Material, Color> blocks = new LinkedHashMap<>();
         blocks.put(Material.STONE, GREY);
         blocks.put(Material.ANDESITE, GREY);
