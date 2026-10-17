@@ -90,9 +90,8 @@ public final class SetupItems {
 
                 ECSEntity entity = AppState.createSpider(player, player.getWorld(), hitPosition, options, orientation);
                 if (entity == null) return;
-                SpiderBody spider = entity.query(SpiderBody.class);
-                if (spider == null) return;
-                setSpiderUUID(item, spider.getUuid());
+                // createSpider always spawns a body
+                setSpiderUUID(item, entity.query(SpiderBody.class).getUuid());
 
                 player.sendActionBar(Component.text("Spider created"));
             }
